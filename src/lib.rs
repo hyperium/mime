@@ -1,20 +1,21 @@
+#![experimental]
 #![feature(macro_rules, phase)]
 
-/// # Mime
-///
-/// Mime is now Media Type, technically, but `Mime` is more immediately
-/// understandable, so the main type here is `Mime`.
-///
-/// ## What is Mime?
-///
-/// Example mime string: `text/plain;charset=utf-8`
-///
-/// ```rust
-/// use std::from_str::FromStr;
-/// use mime::{Mime, Text, Plain, Charset, Utf8};
-/// assert_eq!(FromStr::from_str("text/plain;charset=utf-8"),
-///            Some(Mime(Text, Plain, vec![(Charset, Utf8)])));
-/// ```
+//! # Mime
+//!
+//! Mime is now Media Type, technically, but `Mime` is more immediately
+//! understandable, so the main type here is `Mime`.
+//!
+//! ## What is Mime?
+//!
+//! Example mime string: `text/plain;charset=utf-8`
+//!
+//! ```rust
+//! use std::from_str::FromStr;
+//! use mime::{Mime, Text, Plain, Charset, Utf8};
+//! assert_eq!(FromStr::from_str("text/plain;charset=utf-8"),
+//!            Some(Mime(Text, Plain, vec![(Charset, Utf8)])));
+//! ```
 
 #[phase(plugin, link)]
 extern crate log;
