@@ -7,8 +7,8 @@ after_success: |
     echo '<meta http-equiv=refresh content=0;url=url/index.html>' > target/doc/index.html &&
     sudo pip install ghp-import &&
     ghp-import -n target/doc &&
-    git push -f https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+    git push -fq https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
 
 env:
     global:
-        - secure: d6IhXZSSzV+7Uc/Kp0r7yILuC/kYyWHVYKzIr2XTSlprBAiRBEv860HxldCR+E4hp0IEio4j8++zlZ5F/taeuzgheLW63NBJkbQIjd64wTfa9pYTtsV8miR8KLjrRpTZDv0hEq5x5IJ28AiyZfqL7EDzVupKBDhIk+dIruhqJ/I=
+        - secure: rkPwcgjGQobsH3/LAV3Ecyt5Q6BiqWhAITLUUCX/lrBjXDaUma+RUjnh7bEzCQ5sG1hFLCJUlLZbWuNx+95t7yRgP14T3asp/a4PdtPkwL8okqq7RLAt7tjI6optUZ8Kr7HNp3jQDHda4tpSLDaZvM3zmrHOLwsDpYLRNAbhWM8=
