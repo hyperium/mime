@@ -61,7 +61,7 @@ macro_rules! inspect(
 ///     _ => ()
 /// }
 /// ```
-#[deriving(PartialEq)]
+#[deriving(Clone, PartialEq)]
 pub struct Mime(pub TopLevel, pub SubLevel, pub Vec<Param>);
 
 macro_rules! enoom (
