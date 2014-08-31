@@ -1,6 +1,3 @@
-#![experimental]
-#![feature(macro_rules, phase)]
-
 //! # Mime
 //!
 //! Mime is now Media Type, technically, but `Mime` is more immediately
@@ -11,11 +8,16 @@
 //! Example mime string: `text/plain;charset=utf-8`
 //!
 //! ```rust
-//! use std::from_str::FromStr;
+//! # use std::from_str::FromStr;
 //! use mime::{Mime, Text, Plain, Charset, Utf8};
-//! assert_eq!(FromStr::from_str("text/plain;charset=utf-8"),
-//!            Some(Mime(Text, Plain, vec![(Charset, Utf8)])));
+//! let mime: Mime = FromStr::from_str("text/plain;charset=utf-8").unwrap();
+//! assert_eq!(mime, Mime(Text, Plain, vec![(Charset, Utf8)]));
 //! ```
+
+#![license = "MIT"]
+#![doc(html_root_url = "http://seanmonstar.github.io/mime.rs")]
+#![experimental]
+#![feature(macro_rules, phase)]
 
 #[phase(plugin, link)]
 extern crate log;
@@ -116,6 +118,8 @@ enoom! {
     Plain, "plain";
     Html, "html";
     Xml, "xml";
+    Javascript, "javascript";
+    Css, "css";
     
     // common application/*
     Json, "json";
@@ -131,6 +135,7 @@ enoom! {
     pub enum Attr;
     AttrExt;
     Charset, "charset";
+    Q, "q";
 }
 
 enoom! {
