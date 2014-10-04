@@ -317,8 +317,8 @@ fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: uint) -> Op
 //
 fn is_restricted_name_first_char(c: char) -> bool {
     match c {
-        'a'..'z' |
-        '0'..'9' => true,
+        'a'...'z' |
+        '0'...'9' => true,
         _ => false
     }
 }
