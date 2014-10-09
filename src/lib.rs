@@ -344,7 +344,7 @@ fn is_restricted_name_char(c: char) -> bool {
 
 
 #[inline]
-fn fmt_params<T: Slice<Param>>(params: T, fmt: &mut fmt::Formatter) -> fmt::Result {
+fn fmt_params<T: AsSlice<Param>>(params: T, fmt: &mut fmt::Formatter) -> fmt::Result {
     for param in params.as_slice().iter() {
         try!(fmt_param(param, fmt));
     }
