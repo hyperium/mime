@@ -25,7 +25,7 @@ extern crate log;
 #[cfg(test)]
 extern crate test;
 
-use std::ascii::OwnedAsciiExt;
+use std::ascii::AsciiExt;
 use std::cmp::Equiv;
 use std::fmt;
 use std::from_str::FromStr;
@@ -164,7 +164,7 @@ impl fmt::Show for Mime {
 
 impl FromStr for Mime {
     fn from_str(raw: &str) -> Option<Mime> {
-        let ascii = raw.to_string().into_ascii_lower(); // lifetimes :(
+        let ascii = raw.to_ascii_lower(); // lifetimes :(
         let raw = ascii.as_slice();
         let len = raw.len();
         let mut iter = raw.chars().enumerate();
