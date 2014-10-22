@@ -25,7 +25,7 @@ extern crate log;
 #[cfg(test)]
 extern crate test;
 
-use std::ascii::StrAsciiExt;
+use std::ascii::AsciiExt;
 use std::cmp::Equiv;
 use std::fmt;
 use std::from_str::FromStr;
