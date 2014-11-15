@@ -123,6 +123,7 @@ enoom! {
     
     // common application/*
     Json, "json";
+    WwwFormUrlEncoded, "x-www-form-urlencoded";
     
     // common image/*
     Png, "png";
