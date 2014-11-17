@@ -120,11 +120,14 @@ enoom! {
     Xml, "xml";
     Javascript, "javascript";
     Css, "css";
-    
+
     // common application/*
     Json, "json";
     WwwFormUrlEncoded, "x-www-form-urlencoded";
-    
+
+    // multipart/*
+    FormData, "form-data";
+
     // common image/*
     Png, "png";
     Gif, "gif";
