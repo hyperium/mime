@@ -8,7 +8,7 @@
 //! Example mime string: `text/plain;charset=utf-8`
 //!
 //! ```rust
-//! # use std::from_str::FromStr;
+//! # use std::str::FromStr;
 //! use mime::{Mime, Text, Plain, Charset, Utf8};
 //! let mime: Mime = FromStr::from_str("text/plain;charset=utf-8").unwrap();
 //! assert_eq!(mime, Mime(Text, Plain, vec![(Charset, Utf8)]));
@@ -28,7 +28,7 @@ extern crate test;
 use std::ascii::AsciiExt;
 use std::cmp::Equiv;
 use std::fmt;
-use std::from_str::FromStr;
+use std::str::FromStr;
 use std::iter::Enumerate;
 use std::str::Chars;
 
@@ -53,7 +53,7 @@ macro_rules! inspect(
 /// This improves things so you use match without Strings:
 ///
 /// ```rust
-/// use std::from_str::from_str;
+/// use std::str::from_str;
 /// use mime::{Mime, Application, Json};
 ///
 /// let mime: mime::Mime = from_str("application/json").unwrap();
@@ -120,11 +120,11 @@ enoom! {
     Xml, "xml";
     Javascript, "javascript";
     Css, "css";
-    
+
     // common application/*
     Json, "json";
     WwwFormUrlEncoded, "x-www-form-urlencoded";
-    
+
     // common image/*
     Png, "png";
     Gif, "gif";
@@ -360,7 +360,7 @@ fn fmt_param(param: &Param, fmt: &mut fmt::Formatter) -> fmt::Result {
 
 #[cfg(test)]
 mod tests {
-    use std::from_str::{FromStr, from_str};
+    use std::str::{FromStr, from_str};
     use test::Bencher;
     use super::{Mime, Text, Plain, Charset, Utf8, AttrExt, ValueExt};
 
