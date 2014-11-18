@@ -17,7 +17,7 @@
 #![license = "MIT"]
 #![doc(html_root_url = "http://seanmonstar.github.io/mime.rs")]
 #![experimental]
-#![feature(macro_rules, phase)]
+#![feature(macro_rules, phase, globs)]
 
 #[phase(plugin, link)]
 extern crate log;
@@ -31,6 +31,11 @@ use std::fmt;
 use std::str::FromStr;
 use std::iter::Enumerate;
 use std::str::Chars;
+
+pub use self::attr::*;
+pub use self::sub_level::*;
+pub use self::top_level::*;
+pub use self::value::*;
 
 macro_rules! inspect(
     ($s:expr, $t:expr) => ({
@@ -67,35 +72,43 @@ macro_rules! inspect(
 pub struct Mime(pub TopLevel, pub SubLevel, pub Vec<Param>);
 
 macro_rules! enoom (
-    (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
+    (pub enum $modd:ident; pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
+        pub mod $modd {
+            use std::fmt;
+            use std::str::FromStr;
 
-        #[deriving(Clone, PartialEq)]
-        pub enum $en {
-            $($ty),*,
-            $ext(String)
-        }
+            pub use self::$en::{$($ty),+};
+            pub use self::$en::$ext;
 
-        impl fmt::Show for $en {
-            fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-                match *self {
-                    $($ty => $text),*,
-                    $ext(ref s) => return s.fmt(fmt)
-                }.fmt(fmt)
+            #[deriving(Clone, PartialEq)]
+            pub enum $en {
+                $($ty),*,
+                $ext(String)
             }
-        }
 
-        impl FromStr for $en {
-            fn from_str(s: &str) -> Option<$en> {
-                Some(match s {
-                    $(_s if _s == $text => $ty),*,
-                    s => $ext(inspect!(stringify!($ext), s).to_string())
-                })
+            impl fmt::Show for $en {
+                fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+                    match *self {
+                        $($ty => $text),*,
+                        $ext(ref s) => return s.fmt(fmt)
+                    }.fmt(fmt)
+                }
+            }
+
+            impl FromStr for $en {
+                fn from_str(s: &str) -> Option<$en> {
+                    Some(match s {
+                        $(_s if _s == $text => $ty),*,
+                        s => $ext(inspect!(stringify!($ext), s).to_string())
+                    })
+                }
             }
         }
     )
 )
 
 enoom! {
+    pub enum top_level;
     pub enum TopLevel;
     TopExt;
     TopStar, "*"; // remove Top prefix if enums gain namespaces
@@ -110,6 +123,7 @@ enoom! {
 }
 
 enoom! {
+    pub enum sub_level;
     pub enum SubLevel;
     SubExt;
     SubStar, "*"; // remove Sub prefix if enums gain namespaces
@@ -136,6 +150,7 @@ enoom! {
 }
 
 enoom! {
+    pub enum attr;
     pub enum Attr;
     AttrExt;
     Charset, "charset";
@@ -143,6 +158,7 @@ enoom! {
 }
 
 enoom! {
+    pub enum value;
     pub enum Value;
     ValueExt;
     Utf8, "utf-8";
