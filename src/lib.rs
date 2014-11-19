@@ -78,8 +78,8 @@ macro_rules! enoom (
         impl fmt::Show for $en {
             fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
                 match *self {
-                    $($ty => $text),*,
-                    $ext(ref s) => return s.fmt(fmt)
+                    $($en::$ty => $text),*,
+                $en::$ext(ref s) => return s.fmt(fmt)
                 }.fmt(fmt)
             }
         }
@@ -87,8 +87,8 @@ macro_rules! enoom (
         impl FromStr for $en {
             fn from_str(s: &str) -> Option<$en> {
                 Some(match s {
-                    $(_s if _s == $text => $ty),*,
-                    s => $ext(inspect!(stringify!($ext), s).to_string())
+                    $(_s if _s == $text => $en::$ty),*,
+                    s => $en::$ext(inspect!(stringify!($ext), s).to_string())
                 })
             }
         }
