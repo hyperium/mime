@@ -78,8 +78,8 @@ macro_rules! enoom (
         impl fmt::Show for $en {
             fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
                 match *self {
-                    $($ty => $text),*,
-                    $ext(ref s) => return s.fmt(fmt)
+                    $($en::$ty => $text),*,
+                    $en::$ext(ref s) => return s.fmt(fmt)
                 }.fmt(fmt)
             }
         }
@@ -87,8 +87,8 @@ macro_rules! enoom (
         impl FromStr for $en {
             fn from_str(s: &str) -> Option<$en> {
                 Some(match s {
-                    $(_s if _s == $text => $ty),*,
-                    s => $ext(inspect!(stringify!($ext), s).to_string())
+                    $(_s if _s == $text => $en::$ty),*,
+                    s => $en::$ext(inspect!(stringify!($ext), s).to_string())
                 })
             }
         }
@@ -97,8 +97,8 @@ macro_rules! enoom (
 
 enoom! {
     pub enum TopLevel;
-    TopExt;
-    TopStar, "*"; // remove Top prefix if enums gain namespaces
+    Ext;
+    Star, "*";
     Text, "text";
     Image, "image";
     Audio, "audio";
@@ -111,8 +111,8 @@ enoom! {
 
 enoom! {
     pub enum SubLevel;
-    SubExt;
-    SubStar, "*"; // remove Sub prefix if enums gain namespaces
+    Ext;
+    Star, "*";
 
     // common text/*
     Plain, "plain";
@@ -137,14 +137,14 @@ enoom! {
 
 enoom! {
     pub enum Attr;
-    AttrExt;
+    Ext;
     Charset, "charset";
     Q, "q";
 }
 
 enoom! {
     pub enum Value;
-    ValueExt;
+    Ext;
     Utf8, "utf-8";
 }
 
@@ -365,31 +365,31 @@ fn fmt_param(param: &Param, fmt: &mut fmt::Formatter) -> fmt::Result {
 mod tests {
     use std::str::{FromStr, from_str};
     use test::Bencher;
-    use super::{Mime, Text, Plain, Charset, Utf8, AttrExt, ValueExt};
+    use super::{TopLevel, SubLevel, Attr, Value, Mime};
 
     #[test]
     fn test_mime_show() {
-        let mime = Mime(Text, Plain, vec![]);
+        let mime = Mime(TopLevel::Text, SubLevel::Plain, vec![]);
         assert_eq!(mime.to_string(), "text/plain".to_string());
-        let mime = Mime(Text, Plain, vec![(Charset, Utf8)]);
+        let mime = Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)]);
         assert_eq!(mime.to_string(), "text/plain; charset=utf-8".to_string());
     }
 
     #[test]
     fn test_mime_from_str() {
-        assert_eq!(FromStr::from_str("text/plain"), Some(Mime(Text, Plain, vec![])));
-        assert_eq!(FromStr::from_str("TEXT/PLAIN"), Some(Mime(Text, Plain, vec![])));
-        assert_eq!(FromStr::from_str("text/plain; charset=utf-8"), Some(Mime(Text, Plain, vec![(Charset, Utf8)])));
-        assert_eq!(FromStr::from_str("text/plain;charset=\"utf-8\""), Some(Mime(Text, Plain, vec![(Charset, Utf8)])));
+        assert_eq!(FromStr::from_str("text/plain"), Some(Mime(TopLevel::Text, SubLevel::Plain, vec![])));
+        assert_eq!(FromStr::from_str("TEXT/PLAIN"), Some(Mime(TopLevel::Text, SubLevel::Plain, vec![])));
+        assert_eq!(FromStr::from_str("text/plain; charset=utf-8"), Some(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)])));
+        assert_eq!(FromStr::from_str("text/plain;charset=\"utf-8\""), Some(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)])));
         assert_eq!(FromStr::from_str("text/plain; charset=utf-8; foo=bar"),
-            Some(Mime(Text, Plain, vec![(Charset, Utf8),
-                                        (AttrExt("foo".to_string()), ValueExt("bar".to_string())) ])));
+            Some(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8),
+                                        (Attr::Ext("foo".to_string()), Value::Ext("bar".to_string())) ])));
     }
 
 
     #[bench]
     fn bench_show(b: &mut Bencher) {
-        let mime = Mime(Text, Plain, vec![(Charset, Utf8), (AttrExt("foo".to_string()), ValueExt("bar".to_string()))]);
+        let mime = Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8), (Attr::Ext("foo".to_string()), Value::Ext("bar".to_string()))]);
         b.bytes = mime.to_string().as_bytes().len() as u64;
         b.iter(|| mime.to_string())
     }
