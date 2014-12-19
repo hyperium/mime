@@ -9,13 +9,16 @@
 //!
 //! ```rust
 //! # use std::str::FromStr;
-//! use mime::{Mime, Text, Plain, Charset, Utf8};
+//! # use mime::Mime;
+//! # use mime::TopLevel::Text;
+//! # use mime::SubLevel::Plain;
+//! # use mime::Attr::Charset;
+//! # use mime::Value::Utf8;
 //! let mime: Mime = FromStr::from_str("text/plain;charset=utf-8").unwrap();
 //! assert_eq!(mime, Mime(Text, Plain, vec![(Charset, Utf8)]));
 //! ```
 
-#![license = "MIT"]
-#![doc(html_root_url = "http://seanmonstar.github.io/mime.rs")]
+#![doc(html_root_url = "http://hyperium.github.io/mime.rs")]
 #![experimental]
 #![feature(macro_rules, phase)]
 
@@ -26,7 +29,6 @@ extern crate log;
 extern crate test;
 
 use std::ascii::AsciiExt;
-use std::cmp::Equiv;
 use std::fmt;
 use std::str::FromStr;
 use std::iter::Enumerate;
@@ -38,7 +40,7 @@ macro_rules! inspect(
         debug!("inspect {}: {}", $s, t);
         t
     })
-)
+);
 
 /// Mime, or Media Type. Encapsulates common registers types.
 ///
@@ -54,25 +56,35 @@ macro_rules! inspect(
 ///
 /// ```rust
 /// use std::str::from_str;
-/// use mime::{Mime, Application, Json};
+/// use mime::{Mime, TopLevel, SubLevel};
 ///
 /// let mime: mime::Mime = from_str("application/json").unwrap();
 ///
 /// match mime {
-///     Mime(Application, Json, _) => println!("matched json!"),
+///     Mime(TopLevel::Application, SubLevel::Json, _) => println!("matched json!"),
 ///     _ => ()
 /// }
 /// ```
 #[deriving(Clone, PartialEq)]
 pub struct Mime(pub TopLevel, pub SubLevel, pub Vec<Param>);
 
-macro_rules! enoom (
+macro_rules! enoom {
     (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
 
-        #[deriving(Clone, PartialEq)]
+        #[deriving(Clone)]
         pub enum $en {
             $($ty),*,
             $ext(String)
+        }
+
+        impl PartialEq for $en {
+            fn eq(&self, other: &$en) -> bool {
+                match (self, other) {
+                    $( (&$en::$ty, &$en::$ty) => true ),*,
+                    (&$en::$ext(ref a), &$en::$ext(ref b)) => a == b,
+                    _ => self.to_string() == other.to_string()
+                }
+            }
         }
 
         impl fmt::Show for $en {
@@ -93,7 +105,7 @@ macro_rules! enoom (
             }
         }
     )
-)
+}
 
 enoom! {
     pub enum TopLevel;
@@ -149,14 +161,6 @@ enoom! {
 }
 
 pub type Param = (Attr, Value);
-
-impl Equiv<Mime> for Mime {
-    fn equiv(&self, other: &Mime) -> bool {
-        //im so sorry
-        //TODO: be less sorry. dont to_string()
-        self.to_string() == other.to_string()
-    }
-}
 
 impl fmt::Show for Mime {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
