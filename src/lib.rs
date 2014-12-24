@@ -55,10 +55,10 @@ macro_rules! inspect(
 /// This improves things so you use match without Strings:
 ///
 /// ```rust
-/// use std::str::from_str;
+/// use std::str::FromStr;
 /// use mime::{Mime, TopLevel, SubLevel};
 ///
-/// let mime: mime::Mime = from_str("application/json").unwrap();
+/// let mime: mime::Mime = FromStr::from_str("application/json").unwrap();
 ///
 /// match mime {
 ///     Mime(TopLevel::Application, SubLevel::Json, _) => println!("matched json!"),
