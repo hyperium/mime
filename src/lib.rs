@@ -173,7 +173,7 @@ impl fmt::Show for Mime {
 
 impl FromStr for Mime {
     fn from_str(raw: &str) -> Option<Mime> {
-        let ascii = raw.to_ascii_lower(); // lifetimes :(
+        let ascii = raw.to_ascii_lowercase(); // lifetimes :(
         let raw = ascii.as_slice();
         let len = raw.len();
         let mut iter = raw.chars().enumerate();
