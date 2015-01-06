@@ -8,13 +8,12 @@
 //! Example mime string: `text/plain;charset=utf-8`
 //!
 //! ```rust
-//! # use std::str::FromStr;
 //! # use mime::Mime;
 //! # use mime::TopLevel::Text;
 //! # use mime::SubLevel::Plain;
 //! # use mime::Attr::Charset;
 //! # use mime::Value::Utf8;
-//! let mime: Mime = FromStr::from_str("text/plain;charset=utf-8").unwrap();
+//! let mime: Mime = "text/plain;charset=utf-8".parse().unwrap();
 //! assert_eq!(mime, Mime(Text, Plain, vec![(Charset, Utf8)]));
 //! ```
 
@@ -56,10 +55,9 @@ macro_rules! inspect(
 /// This improves things so you use match without Strings:
 ///
 /// ```rust
-/// use std::str::FromStr;
 /// use mime::{Mime, TopLevel, SubLevel};
 ///
-/// let mime: mime::Mime = FromStr::from_str("application/json").unwrap();
+/// let mime: mime::Mime = "application/json".parse().unwrap();
 ///
 /// match mime {
 ///     Mime(TopLevel::Application, SubLevel::Json, _) => println!("matched json!"),
@@ -368,7 +366,7 @@ fn fmt_param(param: &Param, fmt: &mut fmt::Formatter) -> fmt::Result {
 
 #[cfg(test)]
 mod tests {
-    use std::str::{FromStr, from_str};
+    use std::str::FromStr;
     use test::Bencher;
     use super::{TopLevel, SubLevel, Attr, Value, Mime};
 
