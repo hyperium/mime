@@ -66,13 +66,13 @@ macro_rules! inspect(
 ///     _ => ()
 /// }
 /// ```
-#[deriving(Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Mime(pub TopLevel, pub SubLevel, pub Vec<Param>);
 
 macro_rules! enoom {
     (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
 
-        #[deriving(Clone)]
+        #[derive(Clone)]
         pub enum $en {
             $($ty),*,
             $ext(String)
