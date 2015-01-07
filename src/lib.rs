@@ -19,10 +19,9 @@
 
 #![doc(html_root_url = "http://hyperium.github.io/mime.rs")]
 #![experimental]
-#![feature(macro_rules, phase)]
 #![deny(warnings)]
 
-#[phase(plugin, link)]
+#[macro_use]
 extern crate log;
 
 #[cfg(test)]
