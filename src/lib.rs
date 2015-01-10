@@ -8,6 +8,7 @@
 //! Example mime string: `text/plain;charset=utf-8`
 //!
 //! ```rust
+//! # #![allow(unstable)]
 //! # use mime::Mime;
 //! # use mime::TopLevel::Text;
 //! # use mime::SubLevel::Plain;
@@ -19,7 +20,7 @@
 
 #![doc(html_root_url = "http://hyperium.github.io/mime.rs")]
 #![experimental]
-#![deny(warnings)]
+//#![cfg_attr(test, deny(warnings))]
 
 #[macro_use]
 extern crate log;
@@ -36,7 +37,7 @@ use std::str::Chars;
 macro_rules! inspect(
     ($s:expr, $t:expr) => ({
         let t = $t;
-        debug!("inspect {}: {}", $s, t);
+        debug!("inspect {}: {:?}", $s, t);
         t
     })
 );
@@ -54,6 +55,7 @@ macro_rules! inspect(
 /// This improves things so you use match without Strings:
 ///
 /// ```rust
+/// # #![allow(unstable)]
 /// use mime::{Mime, TopLevel, SubLevel};
 ///
 /// let mime: mime::Mime = "application/json".parse().unwrap();
@@ -63,13 +65,13 @@ macro_rules! inspect(
 ///     _ => ()
 /// }
 /// ```
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Show)]
 pub struct Mime(pub TopLevel, pub SubLevel, pub Vec<Param>);
 
 macro_rules! enoom {
     (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
 
-        #[derive(Clone)]
+        #[derive(Clone, Show)]
         pub enum $en {
             $($ty),*,
             $ext(String)
@@ -85,12 +87,12 @@ macro_rules! enoom {
             }
         }
 
-        impl fmt::Show for $en {
+        impl fmt::String for $en {
             fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-                match *self {
+                fmt.write_str(match *self {
                     $($en::$ty => $text),*,
-                    $en::$ext(ref s) => return s.fmt(fmt)
-                }.fmt(fmt)
+                    $en::$ext(ref s) => &**s
+                })
             }
         }
 
@@ -160,18 +162,18 @@ enoom! {
 
 pub type Param = (Attr, Value);
 
-impl fmt::Show for Mime {
+impl fmt::String for Mime {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let Mime(ref top, ref sub, ref params) = *self;
         try!(write!(fmt, "{}/{}", top, sub));
-        fmt_params(params.as_slice(), fmt)
+        fmt_params(&**params, fmt)
     }
 }
 
 impl FromStr for Mime {
     fn from_str(raw: &str) -> Option<Mime> {
         let ascii = raw.to_ascii_lowercase(); // lifetimes :(
-        let raw = ascii.as_slice();
+        let raw = &*ascii;
         let len = raw.len();
         let mut iter = raw.chars().enumerate();
         let mut params = vec![];
@@ -182,7 +184,7 @@ impl FromStr for Mime {
             match inspect!("top iter", iter.next()) {
                 Some((0, c)) if is_restricted_name_first_char(c) => (),
                 Some((i, c)) if i > 0 && is_restricted_name_char(c) => (),
-                Some((i, '/')) if i > 0 => match FromStr::from_str(raw.slice_to(i)) {
+                Some((i, '/')) if i > 0 => match FromStr::from_str(&raw[..i]) {
                     Some(t) => {
                         top = t;
                         start = i + 1;
@@ -201,7 +203,7 @@ impl FromStr for Mime {
             match inspect!("sub iter", iter.next()) {
                 Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
                 Some((i, c)) if i > start && is_restricted_name_char(c) => (),
-                Some((i, ';')) if i > start => match FromStr::from_str(raw.slice(start, i)) {
+                Some((i, ';')) if i > start => match FromStr::from_str(&raw[start..i]) {
                     Some(s) => {
                         sub = s;
                         start = i + 1;
@@ -209,7 +211,7 @@ impl FromStr for Mime {
                     }
                     None => return None
                 },
-                None => match FromStr::from_str(raw.slice_from(start)) {
+                None => match FromStr::from_str(&raw[start..]) {
                     Some(s) => return Some(Mime(top, s, params)),
                     None => return None
                 },
@@ -236,7 +238,7 @@ impl FromStr for Mime {
     }
 }
 
-fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: uint) -> Option<(Param, uint)> {
+fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> Option<(Param, usize)> {
     let mut attr;
     debug!("param_from_str, start={}", start);
     loop {
@@ -244,7 +246,7 @@ fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: uint) -> Op
             Some((i, ' ')) if i == start => start = i + 1,
             Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
             Some((i, c)) if i > start && is_restricted_name_char(c) => (),
-            Some((i, '=')) if i > start => match FromStr::from_str(raw.slice(start, i)) {
+            Some((i, '=')) if i > start => match FromStr::from_str(&raw[start..i]) {
                 Some(a) => {
                     attr = inspect!("attr", a);
                     start = i + 1;
@@ -266,7 +268,7 @@ fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: uint) -> Op
                 start = i + 1;
             },
             Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
-            Some((i, '"')) if i > start && is_quoted => match FromStr::from_str(raw.slice(start, i)) {
+            Some((i, '"')) if i > start && is_quoted => match FromStr::from_str(&raw[start..i]) {
                 Some(v) => {
                     value = v;
                     start = i + 1;
@@ -275,7 +277,7 @@ fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: uint) -> Op
                 None => return None
             },
             Some((i, c)) if i > start && is_quoted || is_restricted_name_char(c) => (),
-            Some((i, ';')) if i > start => match FromStr::from_str(raw.slice(start, i)) {
+            Some((i, ';')) if i > start => match FromStr::from_str(&raw[start..i]) {
                 Some(v) => {
                     value = v;
                     start = i + 1;
@@ -283,7 +285,7 @@ fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: uint) -> Op
                 },
                 None => return None
             },
-            None => match FromStr::from_str(raw.slice_from(start)) {
+            None => match FromStr::from_str(&raw[start..]) {
                 Some(v) => {
                     value = v;
                     start = raw.len();
@@ -350,8 +352,8 @@ fn is_restricted_name_char(c: char) -> bool {
 
 
 #[inline]
-fn fmt_params<T: AsSlice<Param>>(params: T, fmt: &mut fmt::Formatter) -> fmt::Result {
-    for param in params.as_slice().iter() {
+fn fmt_params(params: &[Param], fmt: &mut fmt::Formatter) -> fmt::Result {
+    for param in params.iter() {
         try!(fmt_param(param, fmt));
     }
     Ok(())
