@@ -19,8 +19,8 @@
 //! ```
 
 #![doc(html_root_url = "http://hyperium.github.io/mime.rs")]
-#![experimental]
-//#![cfg_attr(test, deny(warnings))]
+#![cfg_attr(test, deny(warnings))]
+#![allow(unstable)]
 
 #[macro_use]
 extern crate log;
@@ -65,13 +65,13 @@ macro_rules! inspect(
 ///     _ => ()
 /// }
 /// ```
-#[derive(Clone, PartialEq, Show)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Mime(pub TopLevel, pub SubLevel, pub Vec<Param>);
 
 macro_rules! enoom {
     (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
 
-        #[derive(Clone, Show)]
+        #[derive(Clone, Debug)]
         pub enum $en {
             $($ty),*,
             $ext(String)
@@ -87,7 +87,7 @@ macro_rules! enoom {
             }
         }
 
-        impl fmt::String for $en {
+        impl fmt::Display for $en {
             fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
                 fmt.write_str(match *self {
                     $($en::$ty => $text),*,
@@ -162,7 +162,7 @@ enoom! {
 
 pub type Param = (Attr, Value);
 
-impl fmt::String for Mime {
+impl fmt::Display for Mime {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let Mime(ref top, ref sub, ref params) = *self;
         try!(write!(fmt, "{}/{}", top, sub));
