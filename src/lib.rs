@@ -38,7 +38,7 @@ use std::str::Chars;
 macro_rules! inspect(
     ($s:expr, $t:expr) => ({
         let t = $t;
-        debug!("inspect {}: {:?}", $s, t);
+        trace!("inspect {}: {:?}", $s, t);
         t
     })
 );
