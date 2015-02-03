@@ -20,7 +20,8 @@
 
 #![doc(html_root_url = "http://hyperium.github.io/mime.rs")]
 #![cfg_attr(test, deny(warnings))]
-#![allow(unstable)]
+#![cfg_attr(test, feature(test))]
+#![feature(core, std_misc)]
 
 #[macro_use]
 extern crate log;
@@ -97,8 +98,9 @@ macro_rules! enoom {
         }
 
         impl FromStr for $en {
-            fn from_str(s: &str) -> Option<$en> {
-                Some(match s {
+            type Err = ();
+            fn from_str(s: &str) -> Result<$en, ()> {
+                Ok(match s {
                     $(_s if _s == $text => $en::$ty),*,
                     s => $en::$ext(inspect!(stringify!($ext), s).to_string())
                 })
@@ -171,7 +173,8 @@ impl fmt::Display for Mime {
 }
 
 impl FromStr for Mime {
-    fn from_str(raw: &str) -> Option<Mime> {
+    type Err = ();
+    fn from_str(raw: &str) -> Result<Mime, ()> {
         let ascii = raw.to_ascii_lowercase(); // lifetimes :(
         let raw = &*ascii;
         let len = raw.len();
@@ -185,14 +188,14 @@ impl FromStr for Mime {
                 Some((0, c)) if is_restricted_name_first_char(c) => (),
                 Some((i, c)) if i > 0 && is_restricted_name_char(c) => (),
                 Some((i, '/')) if i > 0 => match FromStr::from_str(&raw[..i]) {
-                    Some(t) => {
+                    Ok(t) => {
                         top = t;
                         start = i + 1;
                         break;
                     }
-                    None => return None
+                    Err(_) => return Err(())
                 },
-                _ => return None // EOF and no toplevel is no Mime
+                _ => return Err(()) // EOF and no toplevel is no Mime
             };
 
         }
@@ -204,18 +207,18 @@ impl FromStr for Mime {
                 Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
                 Some((i, c)) if i > start && is_restricted_name_char(c) => (),
                 Some((i, ';')) if i > start => match FromStr::from_str(&raw[start..i]) {
-                    Some(s) => {
+                    Ok(s) => {
                         sub = s;
                         start = i + 1;
                         break;
                     }
-                    None => return None
+                    Err(_) => return Err(())
                 },
                 None => match FromStr::from_str(&raw[start..]) {
-                    Some(s) => return Some(Mime(top, s, params)),
-                    None => return None
+                    Ok(s) => return Ok(Mime(top, s, params)),
+                    Err(_) => return Err(())
                 },
-                _ => return None
+                _ => return Err(())
             };
         }
 
@@ -234,7 +237,7 @@ impl FromStr for Mime {
             }
         }
 
-        Some(Mime(top, sub, params))
+        Ok(Mime(top, sub, params))
     }
 }
 
@@ -247,12 +250,12 @@ fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> O
             Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
             Some((i, c)) if i > start && is_restricted_name_char(c) => (),
             Some((i, '=')) if i > start => match FromStr::from_str(&raw[start..i]) {
-                Some(a) => {
+                Ok(a) => {
                     attr = inspect!("attr", a);
                     start = i + 1;
                     break;
                 },
-                None => return None
+                Err(_) => return None
             },
             _ => return None
         }
@@ -269,29 +272,29 @@ fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> O
             },
             Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
             Some((i, '"')) if i > start && is_quoted => match FromStr::from_str(&raw[start..i]) {
-                Some(v) => {
+                Ok(v) => {
                     value = v;
                     start = i + 1;
                     break;
                 },
-                None => return None
+                Err(_) => return None
             },
             Some((i, c)) if i > start && is_quoted || is_restricted_name_char(c) => (),
             Some((i, ';')) if i > start => match FromStr::from_str(&raw[start..i]) {
-                Some(v) => {
+                Ok(v) => {
                     value = v;
                     start = i + 1;
                     break;
                 },
-                None => return None
+                Err(_) => return None
             },
             None => match FromStr::from_str(&raw[start..]) {
-                Some(v) => {
+                Ok(v) => {
                     value = v;
                     start = raw.len();
                     break;
                 },
-                None => return None
+                Err(_) => return None
             },
 
             _ => return None
@@ -381,12 +384,12 @@ mod tests {
 
     #[test]
     fn test_mime_from_str() {
-        assert_eq!(FromStr::from_str("text/plain"), Some(Mime(TopLevel::Text, SubLevel::Plain, vec![])));
-        assert_eq!(FromStr::from_str("TEXT/PLAIN"), Some(Mime(TopLevel::Text, SubLevel::Plain, vec![])));
-        assert_eq!(FromStr::from_str("text/plain; charset=utf-8"), Some(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)])));
-        assert_eq!(FromStr::from_str("text/plain;charset=\"utf-8\""), Some(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)])));
+        assert_eq!(FromStr::from_str("text/plain"), Ok(Mime(TopLevel::Text, SubLevel::Plain, vec![])));
+        assert_eq!(FromStr::from_str("TEXT/PLAIN"), Ok(Mime(TopLevel::Text, SubLevel::Plain, vec![])));
+        assert_eq!(FromStr::from_str("text/plain; charset=utf-8"), Ok(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)])));
+        assert_eq!(FromStr::from_str("text/plain;charset=\"utf-8\""), Ok(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)])));
         assert_eq!(FromStr::from_str("text/plain; charset=utf-8; foo=bar"),
-            Some(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8),
+            Ok(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8),
                                         (Attr::Ext("foo".to_string()), Value::Ext("bar".to_string())) ])));
     }
 
