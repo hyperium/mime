@@ -7,7 +7,7 @@ license = "MIT"
 description = "Strongly Typed Mimes"
 documentation = "http://hyperium.github.io/mime.rs"
 repository = "https://github.com/hyperium/mime.rs"
-keywords = ["mime", "media extensions"]
+keywords = ["mime", "media-extensions"]
 
 [dependencies]
 log = "*"
