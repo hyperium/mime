@@ -1,12 +1,13 @@
 [package]
 
 name = "mime"
-version = "0.0.7"
+version = "0.0.8"
 authors = ["Sean McArthur <sean.monstar@gmail.com>"]
 license = "MIT"
 description = "Strongly Typed Mimes"
 documentation = "http://hyperium.github.io/mime.rs"
 repository = "https://github.com/hyperium/mime.rs"
+keywords = ["mime", "media extensions"]
 
 [dependencies]
 log = "*"
