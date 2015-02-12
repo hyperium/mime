@@ -18,7 +18,7 @@
 //! assert_eq!(mime, Mime(Text, Plain, vec![(Charset, Utf8)]));
 //! ```
 
-#![doc(html_root_url = "http://hyperium.github.io/mime.rs")]
+#![doc(html_root_url = "https://hyperium.github.io/mime.rs")]
 #![cfg_attr(test, deny(warnings))]
 #![cfg_attr(test, feature(test))]
 #![feature(std_misc)]
@@ -31,9 +31,8 @@ extern crate test;
 
 use std::ascii::AsciiExt;
 use std::fmt;
-use std::str::FromStr;
 use std::iter::Enumerate;
-use std::str::Chars;
+use std::str::{FromStr, Chars};
 
 macro_rules! inspect(
     ($s:expr, $t:expr) => ({
@@ -92,7 +91,7 @@ macro_rules! enoom {
             fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
                 fmt.write_str(match *self {
                     $($en::$ty => $text),*,
-                    $en::$ext(ref s) => &**s
+                    $en::$ext(ref s) => s
                 })
             }
         }
@@ -168,7 +167,7 @@ impl fmt::Display for Mime {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let Mime(ref top, ref sub, ref params) = *self;
         try!(write!(fmt, "{}/{}", top, sub));
-        fmt_params(&**params, fmt)
+        fmt_params(params, fmt)
     }
 }
 
@@ -176,9 +175,8 @@ impl FromStr for Mime {
     type Err = ();
     fn from_str(raw: &str) -> Result<Mime, ()> {
         let ascii = raw.to_ascii_lowercase(); // lifetimes :(
-        let raw = &*ascii;
-        let len = raw.len();
-        let mut iter = raw.chars().enumerate();
+        let len = ascii.len();
+        let mut iter = ascii.chars().enumerate();
         let mut params = vec![];
         // toplevel
         let mut start;
@@ -187,7 +185,7 @@ impl FromStr for Mime {
             match inspect!("top iter", iter.next()) {
                 Some((0, c)) if is_restricted_name_first_char(c) => (),
                 Some((i, c)) if i > 0 && is_restricted_name_char(c) => (),
-                Some((i, '/')) if i > 0 => match FromStr::from_str(&raw[..i]) {
+                Some((i, '/')) if i > 0 => match FromStr::from_str(&ascii[..i]) {
                     Ok(t) => {
                         top = t;
                         start = i + 1;
@@ -206,7 +204,7 @@ impl FromStr for Mime {
             match inspect!("sub iter", iter.next()) {
                 Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
                 Some((i, c)) if i > start && is_restricted_name_char(c) => (),
-                Some((i, ';')) if i > start => match FromStr::from_str(&raw[start..i]) {
+                Some((i, ';')) if i > start => match FromStr::from_str(&ascii[start..i]) {
                     Ok(s) => {
                         sub = s;
                         start = i + 1;
@@ -214,7 +212,7 @@ impl FromStr for Mime {
                     }
                     Err(_) => return Err(())
                 },
-                None => match FromStr::from_str(&raw[start..]) {
+                None => match FromStr::from_str(&ascii[start..]) {
                     Ok(s) => return Ok(Mime(top, s, params)),
                     Err(_) => return Err(())
                 },
@@ -225,7 +223,7 @@ impl FromStr for Mime {
         // params
         debug!("starting params, len={}", len);
         loop {
-            match inspect!("param", param_from_str(raw, &mut iter, start)) {
+            match inspect!("param", param_from_str(&ascii, &mut iter, start)) {
                 Some((p, end)) => {
                     params.push(p);
                     start = end;
