@@ -31,9 +31,8 @@ extern crate test;
 
 use std::ascii::AsciiExt;
 use std::fmt;
-use std::str::FromStr;
 use std::iter::Enumerate;
-use std::str::Chars;
+use std::str::{FromStr, Chars};
 
 macro_rules! inspect(
     ($s:expr, $t:expr) => ({
