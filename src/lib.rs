@@ -18,7 +18,7 @@
 //! assert_eq!(mime, Mime(Text, Plain, vec![(Charset, Utf8)]));
 //! ```
 
-#![doc(html_root_url = "http://hyperium.github.io/mime.rs")]
+#![doc(html_root_url = "https://hyperium.github.io/mime.rs")]
 #![cfg_attr(test, deny(warnings))]
 #![cfg_attr(test, feature(test))]
 #![feature(std_misc)]
