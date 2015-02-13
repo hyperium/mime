@@ -58,7 +58,7 @@ macro_rules! inspect(
 /// # #![allow(unstable)]
 /// use mime::{Mime, TopLevel, SubLevel};
 ///
-/// let mime: mime::Mime = "application/json".parse().unwrap();
+/// let mime: Mime = "application/json".parse().unwrap();
 ///
 /// match mime {
 ///     Mime(TopLevel::Application, SubLevel::Json, _) => println!("matched json!"),
