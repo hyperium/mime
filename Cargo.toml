@@ -11,3 +11,6 @@ keywords = ["mime", "media-extensions"]
 
 [dependencies]
 log = "*"
+
+[features]
+nightly = []

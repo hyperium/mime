@@ -8,23 +8,21 @@
 //! Example mime string: `text/plain;charset=utf-8`
 //!
 //! ```rust
-//! # #![allow(unstable)]
-//! # use mime::Mime;
-//! # use mime::TopLevel::Text;
-//! # use mime::SubLevel::Plain;
-//! # use mime::Attr::Charset;
-//! # use mime::Value::Utf8;
-//! let mime: Mime = "text/plain;charset=utf-8".parse().unwrap();
-//! assert_eq!(mime, Mime(Text, Plain, vec![(Charset, Utf8)]));
+//! # #[macro_use] extern crate mime;
+//! # fn main() {
+//! let plain_text: mime::Mime = "text/plain;charset=utf-8".parse().unwrap();
+//! assert_eq!(plain_text, mime!(Text/Plain; Charset=Utf8));
+//! # }
 //! ```
 
 #![doc(html_root_url = "https://hyperium.github.io/mime.rs")]
 #![cfg_attr(test, deny(warnings))]
-#![cfg_attr(test, feature(test))]
+#![cfg_attr(all(features = "nightly", test), feature(test))]
 
 #[macro_use]
 extern crate log;
 
+#[cfg(features = "nightly")]
 #[cfg(test)]
 extern crate test;
 
@@ -54,7 +52,6 @@ macro_rules! inspect(
 /// This improves things so you use match without Strings:
 ///
 /// ```rust
-/// # #![allow(unstable)]
 /// use mime::{Mime, TopLevel, SubLevel};
 ///
 /// let mime: Mime = "application/json".parse().unwrap();
@@ -66,6 +63,49 @@ macro_rules! inspect(
 /// ```
 #[derive(Clone, PartialEq, Debug)]
 pub struct Mime(pub TopLevel, pub SubLevel, pub Vec<Param>);
+
+/// Easily create a Mime without having to import so many enums.
+///
+/// # Example
+///
+/// ```
+/// # #[macro_use] extern crate mime;
+///
+/// # fn main() {
+/// let json = mime!(Application/Json);
+/// let plain = mime!(Text/Plain; Charset=Utf8);
+/// let text = mime!(Text/Html; Charset=("bar"), ("baz")=("quux"));
+/// let img = mime!(Image/_);
+/// # }
+/// ```
+#[macro_export]
+macro_rules! mime {
+    ($top:tt / $sub:tt) => (
+        mime!($top / $sub;)
+    );
+
+    ($top:tt / $sub:tt ; $($attr:tt = $val:tt),*) => (
+        $crate::Mime(
+            __mime__ident_or_ext!(TopLevel::$top),
+            __mime__ident_or_ext!(SubLevel::$sub),
+            vec![ $((__mime__ident_or_ext!(Attr::$attr), __mime__ident_or_ext!(Value::$val))),* ]
+        )
+    );
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __mime__ident_or_ext {
+    ($enoom:ident::_) => (
+        $crate::$enoom::Star
+    );
+    ($enoom:ident::($inner:expr)) => (
+        $crate::$enoom::Ext($inner.to_string())
+    );
+    ($enoom:ident::$var:ident) => (
+        $crate::$enoom::$var
+    )
+}
 
 macro_rules! enoom {
     (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
@@ -368,36 +408,37 @@ fn fmt_param(param: &Param, fmt: &mut fmt::Formatter) -> fmt::Result {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+    #[cfg(features = "nightly")]
     use test::Bencher;
-    use super::{TopLevel, SubLevel, Attr, Value, Mime};
 
     #[test]
     fn test_mime_show() {
-        let mime = Mime(TopLevel::Text, SubLevel::Plain, vec![]);
+        let mime = mime!(Text/Plain);
         assert_eq!(mime.to_string(), "text/plain".to_string());
-        let mime = Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)]);
+        let mime = mime!(Text/Plain; Charset=Utf8);
         assert_eq!(mime.to_string(), "text/plain; charset=utf-8".to_string());
     }
 
     #[test]
     fn test_mime_from_str() {
-        assert_eq!(FromStr::from_str("text/plain"), Ok(Mime(TopLevel::Text, SubLevel::Plain, vec![])));
-        assert_eq!(FromStr::from_str("TEXT/PLAIN"), Ok(Mime(TopLevel::Text, SubLevel::Plain, vec![])));
-        assert_eq!(FromStr::from_str("text/plain; charset=utf-8"), Ok(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)])));
-        assert_eq!(FromStr::from_str("text/plain;charset=\"utf-8\""), Ok(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)])));
+        assert_eq!(FromStr::from_str("text/plain"), Ok(mime!(Text/Plain)));
+        assert_eq!(FromStr::from_str("TEXT/PLAIN"), Ok(mime!(Text/Plain)));
+        assert_eq!(FromStr::from_str("text/plain; charset=utf-8"), Ok(mime!(Text/Plain; Charset=Utf8)));
+        assert_eq!(FromStr::from_str("text/plain;charset=\"utf-8\""), Ok(mime!(Text/Plain; Charset=Utf8)));
         assert_eq!(FromStr::from_str("text/plain; charset=utf-8; foo=bar"),
-            Ok(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8),
-                                        (Attr::Ext("foo".to_string()), Value::Ext("bar".to_string())) ])));
+            Ok(mime!(Text/Plain; Charset=Utf8, ("foo")=("bar"))));
     }
 
 
+    #[cfg(features = "nightly")]
     #[bench]
     fn bench_show(b: &mut Bencher) {
-        let mime = Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8), (Attr::Ext("foo".to_string()), Value::Ext("bar".to_string()))]);
+        let mime = mime!(Text/Plain; Charset=Utf8, "foo"="bar");
         b.bytes = mime.to_string().as_bytes().len() as u64;
         b.iter(|| mime.to_string())
     }
 
+    #[cfg(features = "nightly")]
     #[bench]
     fn bench_from_str(b: &mut Bencher) {
         let s = "text/plain; charset=utf-8; foo=bar";
