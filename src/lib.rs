@@ -17,12 +17,12 @@
 
 #![doc(html_root_url = "https://hyperium.github.io/mime.rs")]
 #![cfg_attr(test, deny(warnings))]
-#![cfg_attr(all(features = "nightly", test), feature(test))]
+#![cfg_attr(all(feature = "nightly", test), feature(test))]
 
 #[macro_use]
 extern crate log;
 
-#[cfg(features = "nightly")]
+#[cfg(feature = "nightly")]
 #[cfg(test)]
 extern crate test;
 
@@ -414,7 +414,7 @@ fn fmt_param(param: &Param, fmt: &mut fmt::Formatter) -> fmt::Result {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
-    #[cfg(features = "nightly")]
+    #[cfg(feature = "nightly")]
     use test::Bencher;
     use super::Mime;
 
@@ -437,15 +437,15 @@ mod tests {
     }
 
 
-    #[cfg(features = "nightly")]
+    #[cfg(feature = "nightly")]
     #[bench]
     fn bench_show(b: &mut Bencher) {
-        let mime = mime!(Text/Plain; Charset=Utf8, "foo"="bar");
+        let mime = mime!(Text/Plain; Charset=Utf8, ("foo")=("bar"));
         b.bytes = mime.to_string().as_bytes().len() as u64;
         b.iter(|| mime.to_string())
     }
 
-    #[cfg(features = "nightly")]
+    #[cfg(feature = "nightly")]
     #[bench]
     fn bench_from_str(b: &mut Bencher) {
         let s = "text/plain; charset=utf-8; foo=bar";
