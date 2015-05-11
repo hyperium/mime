@@ -61,8 +61,14 @@ macro_rules! inspect(
 ///     _ => ()
 /// }
 /// ```
-#[derive(Clone, PartialEq, Debug)]
-pub struct Mime(pub TopLevel, pub SubLevel, pub Vec<Param>);
+#[derive(Clone, Debug)]
+pub struct Mime<T: AsRef<[Param]> = Vec<Param>>(pub TopLevel, pub SubLevel, pub T);
+
+impl<LHS: AsRef<[Param]>, RHS: AsRef<[Param]>> PartialEq<Mime<RHS>> for Mime<LHS> {
+    fn eq(&self, other: &Mime<RHS>) -> bool {
+        self.0 == other.0 && self.1 == other.1 && self.2.as_ref() == other.2.as_ref()
+    }
+}
 
 /// Easily create a Mime without having to import so many enums.
 ///
@@ -88,7 +94,7 @@ macro_rules! mime {
         $crate::Mime(
             __mime__ident_or_ext!(TopLevel::$top),
             __mime__ident_or_ext!(SubLevel::$sub),
-            vec![ $((__mime__ident_or_ext!(Attr::$attr), __mime__ident_or_ext!(Value::$val))),* ]
+            [ $((__mime__ident_or_ext!(Attr::$attr), __mime__ident_or_ext!(Value::$val))),* ]
         )
     );
 }
@@ -202,11 +208,11 @@ enoom! {
 
 pub type Param = (Attr, Value);
 
-impl fmt::Display for Mime {
+impl<T: AsRef<[Param]>> fmt::Display for Mime<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let Mime(ref top, ref sub, ref params) = *self;
         try!(write!(fmt, "{}/{}", top, sub));
-        fmt_params(params, fmt)
+        fmt_params(params.as_ref(), fmt)
     }
 }
 
@@ -410,6 +416,7 @@ mod tests {
     use std::str::FromStr;
     #[cfg(features = "nightly")]
     use test::Bencher;
+    use super::Mime;
 
     #[test]
     fn test_mime_show() {
@@ -421,12 +428,12 @@ mod tests {
 
     #[test]
     fn test_mime_from_str() {
-        assert_eq!(FromStr::from_str("text/plain"), Ok(mime!(Text/Plain)));
-        assert_eq!(FromStr::from_str("TEXT/PLAIN"), Ok(mime!(Text/Plain)));
-        assert_eq!(FromStr::from_str("text/plain; charset=utf-8"), Ok(mime!(Text/Plain; Charset=Utf8)));
-        assert_eq!(FromStr::from_str("text/plain;charset=\"utf-8\""), Ok(mime!(Text/Plain; Charset=Utf8)));
-        assert_eq!(FromStr::from_str("text/plain; charset=utf-8; foo=bar"),
-            Ok(mime!(Text/Plain; Charset=Utf8, ("foo")=("bar"))));
+        assert_eq!(Mime::from_str("text/plain").unwrap(), mime!(Text/Plain));
+        assert_eq!(Mime::from_str("TEXT/PLAIN").unwrap(), mime!(Text/Plain));
+        assert_eq!(Mime::from_str("text/plain; charset=utf-8").unwrap(), mime!(Text/Plain; Charset=Utf8));
+        assert_eq!(Mime::from_str("text/plain;charset=\"utf-8\"").unwrap(), mime!(Text/Plain; Charset=Utf8));
+        assert_eq!(Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap(),
+            mime!(Text/Plain; Charset=Utf8, ("foo")=("bar")));
     }
 
 
