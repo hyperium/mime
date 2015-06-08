@@ -437,6 +437,13 @@ mod tests {
             mime!(Text/Plain; Charset=Utf8, ("foo")=("bar")));
     }
 
+    #[test]
+    fn test_case_sensitive_values() {
+        assert_eq!(Mime::from_str("multipart/form-data; boundary=ABCDEFG").unwrap(),
+                   mime!(Multipart/FormData; Boundary=("ABCDEFG")));
+        assert_eq!(Mime::from_str("multipart/form-data; charset=BASE64; boundary=ABCDEFG").unwrap(),
+                   mime!(Multipart/FormData; Charset=("base64"), Boundary=("ABCDEFG")));
+    }
 
     #[cfg(feature = "nightly")]
     #[bench]
