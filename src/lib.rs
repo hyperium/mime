@@ -197,6 +197,7 @@ enoom! {
     pub enum Attr;
     Ext;
     Charset, "charset";
+    Boundary, "boundary";
     Q, "q";
 }
 
