@@ -269,7 +269,7 @@ impl FromStr for Mime {
         // params
         debug!("starting params, len={}", len);
         loop {
-            match inspect!("param", param_from_str(&ascii, &mut iter, start)) {
+            match inspect!("param", param_from_str(raw, &ascii, &mut iter, start)) {
                 Some((p, end)) => {
                     params.push(p);
                     start = end;
@@ -285,7 +285,7 @@ impl FromStr for Mime {
     }
 }
 
-fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> Option<(Param, usize)> {
+fn param_from_str(raw: &str, ascii: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> Option<(Param, usize)> {
     let mut attr;
     debug!("param_from_str, start={}", start);
     loop {
@@ -293,7 +293,7 @@ fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> O
             Some((i, ' ')) if i == start => start = i + 1,
             Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
             Some((i, c)) if i > start && is_restricted_name_char(c) => (),
-            Some((i, '=')) if i > start => match FromStr::from_str(&raw[start..i]) {
+            Some((i, '=')) if i > start => match FromStr::from_str(&ascii[start..i]) {
                 Ok(a) => {
                     attr = inspect!("attr", a);
                     start = i + 1;
@@ -304,44 +304,50 @@ fn param_from_str(raw: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> O
             _ => return None
         }
     }
+
     let mut value;
     // values must be restrict-name-char or "anything goes"
     let mut is_quoted = false;
-    loop {
-        match inspect!("value iter", iter.next()) {
-            Some((i, '"')) if i == start => {
-                debug!("quoted");
-                is_quoted = true;
-                start = i + 1;
-            },
-            Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
-            Some((i, '"')) if i > start && is_quoted => match FromStr::from_str(&raw[start..i]) {
-                Ok(v) => {
-                    value = v;
-                    start = i + 1;
-                    break;
-                },
-                Err(_) => return None
-            },
-            Some((i, c)) if i > start && is_quoted || is_restricted_name_char(c) => (),
-            Some((i, ';')) if i > start => match FromStr::from_str(&raw[start..i]) {
-                Ok(v) => {
-                    value = v;
-                    start = i + 1;
-                    break;
-                },
-                Err(_) => return None
-            },
-            None => match FromStr::from_str(&raw[start..]) {
-                Ok(v) => {
-                    value = v;
-                    start = raw.len();
-                    break;
-                },
-                Err(_) => return None
-            },
 
-            _ => return None
+    {
+        let substr = |a,b| { if attr==Attr::Charset { &ascii[a..b] } else { &raw[a..b] } };
+        let endstr = |a| { if attr==Attr::Charset { &ascii[a..] } else { &raw[a..] } };
+        loop {
+            match inspect!("value iter", iter.next()) {
+                Some((i, '"')) if i == start => {
+                    debug!("quoted");
+                    is_quoted = true;
+                    start = i + 1;
+                },
+                Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
+                Some((i, '"')) if i > start && is_quoted => match FromStr::from_str(substr(start,i)) {
+                    Ok(v) => {
+                        value = v;
+                        start = i + 1;
+                        break;
+                    },
+                    Err(_) => return None
+                },
+                Some((i, c)) if i > start && is_quoted || is_restricted_name_char(c) => (),
+                Some((i, ';')) if i > start => match FromStr::from_str(substr(start,i)) {
+                    Ok(v) => {
+                        value = v;
+                        start = i + 1;
+                        break;
+                    },
+                    Err(_) => return None
+                },
+                None => match FromStr::from_str(endstr(start)) {
+                    Ok(v) => {
+                        value = v;
+                        start = raw.len();
+                        break;
+                    },
+                    Err(_) => return None
+                },
+
+                _ => return None
+            }
         }
     }
 
