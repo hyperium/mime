@@ -94,7 +94,7 @@ macro_rules! mime {
         $crate::Mime(
             __mime__ident_or_ext!(TopLevel::$top),
             __mime__ident_or_ext!(SubLevel::$sub),
-            [ $((__mime__ident_or_ext!(Attr::$attr), __mime__ident_or_ext!(Value::$val))),* ]
+            vec![ $((__mime__ident_or_ext!(Attr::$attr), __mime__ident_or_ext!(Value::$val))),* ]
         )
     );
 }
