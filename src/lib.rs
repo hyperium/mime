@@ -122,6 +122,15 @@ macro_rules! enoom {
             $ext(String)
         }
 
+        impl $en {
+            pub fn as_str(&self) -> &str {
+                match *self {
+                    $($en::$ty => $text),*,
+                    $en::$ext(ref s) => &s
+                }
+            }
+        }
+
         impl PartialEq for $en {
             fn eq(&self, other: &$en) -> bool {
                 match (self, other) {
@@ -423,7 +432,7 @@ mod tests {
     use std::str::FromStr;
     #[cfg(feature = "nightly")]
     use test::Bencher;
-    use super::Mime;
+    use super::{Mime, Value};
 
     #[test]
     fn test_mime_show() {
@@ -449,6 +458,11 @@ mod tests {
                    mime!(Multipart/FormData; Boundary=("ABCDEFG")));
         assert_eq!(Mime::from_str("multipart/form-data; charset=BASE64; boundary=ABCDEFG").unwrap(),
                    mime!(Multipart/FormData; Charset=("base64"), Boundary=("ABCDEFG")));
+    }
+
+    #[test]
+    fn test_value_as_str() {
+        assert_eq!(Value::Utf8.as_str(), "utf-8");
     }
 
     #[cfg(feature = "nightly")]
