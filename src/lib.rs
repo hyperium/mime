@@ -136,7 +136,7 @@ macro_rules! enoom {
                 match (self, other) {
                     $( (&$en::$ty, &$en::$ty) => true ),*,
                     (&$en::$ext(ref a), &$en::$ext(ref b)) => a == b,
-                    _ => self.to_string() == other.to_string()
+                    _ => self.as_str() == other.as_str()
                 }
             }
         }
