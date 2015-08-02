@@ -269,6 +269,12 @@ impl<T: AsRef<[Param]>> fmt::Display for Mime<T> {
     }
 }
 
+impl<P: AsRef<[Param]>> Mime<P> {
+    pub fn get_param<A: PartialEq<Attr>>(&self, attr: A) -> Option<&Value> {
+        self.2.as_ref().iter().find(|&&(ref name, _)| attr == *name).map(|&(_, ref value)| value)
+    }
+}
+
 impl FromStr for Mime {
     type Err = ();
     fn from_str(raw: &str) -> Result<Mime, ()> {
@@ -475,7 +481,7 @@ mod tests {
     use std::str::FromStr;
     #[cfg(feature = "nightly")]
     use test::Bencher;
-    use super::{Mime, Value};
+    use super::{Mime, Value, Attr};
 
     #[test]
     fn test_mime_show() {
@@ -501,6 +507,15 @@ mod tests {
                    mime!(Multipart/FormData; Boundary=("ABCDEFG")));
         assert_eq!(Mime::from_str("multipart/form-data; charset=BASE64; boundary=ABCDEFG").unwrap(),
                    mime!(Multipart/FormData; Charset=("base64"), Boundary=("ABCDEFG")));
+    }
+
+    #[test]
+    fn test_get_param() {
+        let mime = Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap();
+        assert_eq!(mime.get_param(Attr::Charset), Some(&Value::Utf8));
+        assert_eq!(mime.get_param("charset"), Some(&Value::Utf8));
+        assert_eq!(mime.get_param("foo").unwrap(), "bar");
+        assert_eq!(mime.get_param("baz"), None);
     }
 
     #[test]
