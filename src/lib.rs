@@ -131,6 +131,13 @@ macro_rules! enoom {
             }
         }
 
+        impl ::std::ops::Deref for $en {
+            type Target = str;
+            fn deref(&self) -> &str {
+                self.as_str()
+            }
+        }
+
         impl PartialEq for $en {
             fn eq(&self, other: &$en) -> bool {
                 match (self, other) {
