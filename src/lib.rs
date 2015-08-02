@@ -141,6 +141,42 @@ macro_rules! enoom {
             }
         }
 
+        impl PartialEq<String> for $en {
+            fn eq(&self, other: &String) -> bool {
+                self.as_str() == other
+            }
+        }
+
+        impl PartialEq<str> for $en {
+            fn eq(&self, other: &str) -> bool {
+                self.as_str() == other
+            }
+        }
+
+        impl<'a> PartialEq<&'a str> for $en {
+            fn eq(&self, other: &&'a str) -> bool {
+                self.as_str() == *other
+            }
+        }
+
+        impl PartialEq<$en> for String {
+            fn eq(&self, other: &$en) -> bool {
+                self == other.as_str()
+            }
+        }
+
+        impl PartialEq<$en> for str {
+            fn eq(&self, other: &$en) -> bool {
+                self == other.as_str()
+            }
+        }
+
+        impl<'a> PartialEq<$en> for &'a str {
+            fn eq(&self, other: &$en) -> bool {
+                *self == other.as_str()
+            }
+        }
+
         impl fmt::Display for $en {
             fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
                 fmt.write_str(match *self {
@@ -463,6 +499,12 @@ mod tests {
     #[test]
     fn test_value_as_str() {
         assert_eq!(Value::Utf8.as_str(), "utf-8");
+    }
+
+    #[test]
+    fn test_value_eq_str() {
+        assert_eq!(Value::Utf8, "utf-8");
+        assert_eq!("utf-8", Value::Utf8);
     }
 
     #[cfg(feature = "nightly")]
