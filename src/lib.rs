@@ -226,7 +226,7 @@ impl FromStr for Mime {
         let mut params = vec![];
         // toplevel
         let mut start;
-        let mut top;
+        let top;
         loop {
             match inspect!("top iter", iter.next()) {
                 Some((0, c)) if is_restricted_name_first_char(c) => (),
@@ -245,7 +245,7 @@ impl FromStr for Mime {
         }
 
         // sublevel
-        let mut sub;
+        let sub;
         loop {
             match inspect!("sub iter", iter.next()) {
                 Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
@@ -286,7 +286,7 @@ impl FromStr for Mime {
 }
 
 fn param_from_str(raw: &str, ascii: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> Option<(Param, usize)> {
-    let mut attr;
+    let attr;
     debug!("param_from_str, start={}", start);
     loop {
         match inspect!("attr iter", iter.next()) {
@@ -305,7 +305,7 @@ fn param_from_str(raw: &str, ascii: &str, iter: &mut Enumerate<Chars>, mut start
         }
     }
 
-    let mut value;
+    let value;
     // values must be restrict-name-char or "anything goes"
     let mut is_quoted = false;
 
