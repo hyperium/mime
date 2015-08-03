@@ -122,13 +122,65 @@ macro_rules! enoom {
             $ext(String)
         }
 
+        impl $en {
+            pub fn as_str(&self) -> &str {
+                match *self {
+                    $($en::$ty => $text),*,
+                    $en::$ext(ref s) => &s
+                }
+            }
+        }
+
+        impl ::std::ops::Deref for $en {
+            type Target = str;
+            fn deref(&self) -> &str {
+                self.as_str()
+            }
+        }
+
         impl PartialEq for $en {
             fn eq(&self, other: &$en) -> bool {
                 match (self, other) {
                     $( (&$en::$ty, &$en::$ty) => true ),*,
                     (&$en::$ext(ref a), &$en::$ext(ref b)) => a == b,
-                    _ => self.to_string() == other.to_string()
+                    _ => self.as_str() == other.as_str()
                 }
+            }
+        }
+
+        impl PartialEq<String> for $en {
+            fn eq(&self, other: &String) -> bool {
+                self.as_str() == other
+            }
+        }
+
+        impl PartialEq<str> for $en {
+            fn eq(&self, other: &str) -> bool {
+                self.as_str() == other
+            }
+        }
+
+        impl<'a> PartialEq<&'a str> for $en {
+            fn eq(&self, other: &&'a str) -> bool {
+                self.as_str() == *other
+            }
+        }
+
+        impl PartialEq<$en> for String {
+            fn eq(&self, other: &$en) -> bool {
+                self == other.as_str()
+            }
+        }
+
+        impl PartialEq<$en> for str {
+            fn eq(&self, other: &$en) -> bool {
+                self == other.as_str()
+            }
+        }
+
+        impl<'a> PartialEq<$en> for &'a str {
+            fn eq(&self, other: &$en) -> bool {
+                *self == other.as_str()
             }
         }
 
@@ -217,6 +269,12 @@ impl<T: AsRef<[Param]>> fmt::Display for Mime<T> {
     }
 }
 
+impl<P: AsRef<[Param]>> Mime<P> {
+    pub fn get_param<A: PartialEq<Attr>>(&self, attr: A) -> Option<&Value> {
+        self.2.as_ref().iter().find(|&&(ref name, _)| attr == *name).map(|&(_, ref value)| value)
+    }
+}
+
 impl FromStr for Mime {
     type Err = ();
     fn from_str(raw: &str) -> Result<Mime, ()> {
@@ -226,7 +284,7 @@ impl FromStr for Mime {
         let mut params = vec![];
         // toplevel
         let mut start;
-        let mut top;
+        let top;
         loop {
             match inspect!("top iter", iter.next()) {
                 Some((0, c)) if is_restricted_name_first_char(c) => (),
@@ -245,7 +303,7 @@ impl FromStr for Mime {
         }
 
         // sublevel
-        let mut sub;
+        let sub;
         loop {
             match inspect!("sub iter", iter.next()) {
                 Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
@@ -286,7 +344,7 @@ impl FromStr for Mime {
 }
 
 fn param_from_str(raw: &str, ascii: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> Option<(Param, usize)> {
-    let mut attr;
+    let attr;
     debug!("param_from_str, start={}", start);
     loop {
         match inspect!("attr iter", iter.next()) {
@@ -305,7 +363,7 @@ fn param_from_str(raw: &str, ascii: &str, iter: &mut Enumerate<Chars>, mut start
         }
     }
 
-    let mut value;
+    let value;
     // values must be restrict-name-char or "anything goes"
     let mut is_quoted = false;
 
@@ -423,7 +481,7 @@ mod tests {
     use std::str::FromStr;
     #[cfg(feature = "nightly")]
     use test::Bencher;
-    use super::Mime;
+    use super::{Mime, Value, Attr};
 
     #[test]
     fn test_mime_show() {
@@ -449,6 +507,26 @@ mod tests {
                    mime!(Multipart/FormData; Boundary=("ABCDEFG")));
         assert_eq!(Mime::from_str("multipart/form-data; charset=BASE64; boundary=ABCDEFG").unwrap(),
                    mime!(Multipart/FormData; Charset=("base64"), Boundary=("ABCDEFG")));
+    }
+
+    #[test]
+    fn test_get_param() {
+        let mime = Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap();
+        assert_eq!(mime.get_param(Attr::Charset), Some(&Value::Utf8));
+        assert_eq!(mime.get_param("charset"), Some(&Value::Utf8));
+        assert_eq!(mime.get_param("foo").unwrap(), "bar");
+        assert_eq!(mime.get_param("baz"), None);
+    }
+
+    #[test]
+    fn test_value_as_str() {
+        assert_eq!(Value::Utf8.as_str(), "utf-8");
+    }
+
+    #[test]
+    fn test_value_eq_str() {
+        assert_eq!(Value::Utf8, "utf-8");
+        assert_eq!("utf-8", Value::Utf8);
     }
 
     #[cfg(feature = "nightly")]
