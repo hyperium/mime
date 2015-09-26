@@ -274,6 +274,50 @@ impl<P: AsRef<[Param]>> Mime<P> {
     pub fn get_param<A: PartialEq<Attr>>(&self, attr: A) -> Option<&Value> {
         self.2.as_ref().iter().find(|&&(ref name, _)| attr == *name).map(|&(_, ref value)| value)
     }
+    pub fn accepts(&self, other: &Mime) -> bool {
+        // not star and doesn't match other => no match
+        if (
+            self.0 != TopLevel::Star && self.0 != other.0
+        ) || (
+            self.1 != SubLevel::Star && self.1 != other.1
+        ) {
+            return false
+        }
+        // check params in both MIMEs
+        let sp: &[Param] = self.2.as_ref();
+        let op: &[Param] = other.2.as_ref();
+        for &(ref sa, ref sv) in sp {
+            for &(ref oa, ref ov) in op {
+                if sa == oa {
+                    match sa {
+                        // if given, Ext has to be the same
+                        &Attr::Ext(ref se) => {
+                            if let &Attr::Ext(ref oe) = oa {
+                                if se == oe && sv != ov { return false }
+                            }
+                        }
+                        // if given, Charset has to be the same
+                        &Attr::Charset => {
+                            if sv != ov { return false }
+                        }
+                        // if given, quality has to be better
+                        &Attr::Q => {
+                            if let &Value::Ext(ref sq) = sv {
+                                if let &Value::Ext(ref oq) = ov {
+                                    let sq = f32::from_str(sq).unwrap();
+                                    let oq = f32::from_str(oq).unwrap();
+                                    if sq > oq { return false }
+                                }
+                            }
+                        }
+                        _ => { }
+                    }
+                }
+            }
+        }
+        // if we get here it should be good
+        true
+    }
 }
 
 impl FromStr for Mime {
@@ -528,6 +572,27 @@ mod tests {
     fn test_value_eq_str() {
         assert_eq!(Value::Utf8, "utf-8");
         assert_eq!("utf-8", Value::Utf8);
+    }
+
+    #[test]
+    fn test_accepts() {
+        // NOTE: star doesn't parse properly
+        assert!( Mime::accepts(&mime!(Application/Json),
+                               &mime!(Application/Json)));
+        assert!( Mime::accepts(&mime!(Application/Star),
+                               &mime!(Application/Json)));
+        assert!( Mime::accepts(&mime!(Star/Star),
+                               &mime!(Application/Json)));
+        assert!( Mime::accepts(&Mime::from_str("application/json; q=0.5").unwrap(),
+                               &Mime::from_str("application/json; q=0.7").unwrap()));
+        assert!(!Mime::accepts(&Mime::from_str("application/json; charset=utf-8").unwrap(),
+                               &Mime::from_str("application/msgpack").unwrap()));
+        assert!(!Mime::accepts(&Mime::from_str("text/plain; q=1.0").unwrap(),
+                               &Mime::from_str("text/plain; q=0.8").unwrap()));
+        assert!(!Mime::accepts(&Mime::from_str("text/html; charset=ascii").unwrap(),
+                               &Mime::from_str("text/html; charset=utf-8").unwrap()));
+        assert!( Mime::accepts(&Mime::from_str("text/xml; q=0.5").unwrap(),
+                               &Mime::from_str("text/xml; charset=utf-8").unwrap()));
     }
 
     #[cfg(feature = "nightly")]
