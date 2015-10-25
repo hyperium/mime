@@ -19,6 +19,11 @@
 #![cfg_attr(test, deny(warnings))]
 #![cfg_attr(all(feature = "nightly", test), feature(test))]
 
+#![cfg_attr(feature = "heap_size", feature(plugin, custom_derive))]
+#![cfg_attr(feature = "heap_size", plugin(heapsize_plugin))]
+
+#[cfg(feature = "heap_size")] extern crate heapsize;
+
 #[macro_use]
 extern crate log;
 
@@ -113,7 +118,20 @@ macro_rules! __mime__ident_or_ext {
     )
 }
 
-macro_rules! enoom {
+// This is a workaround, because cfg_attr() isn't working right inside a macro.
+#[cfg(feature = "heap_size")]
+macro_rules! enoom_derive_type {
+    (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
+
+        #[derive(Clone, Debug, HeapSizeOf)]
+        pub enum $en {
+            $($ty),*,
+            $ext(String)
+        }
+    )
+}
+#[cfg(not(feature = "heap_size"))]
+macro_rules! enoom_derive_type {
     (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
 
         #[derive(Clone, Debug)]
@@ -121,6 +139,13 @@ macro_rules! enoom {
             $($ty),*,
             $ext(String)
         }
+    )
+}
+
+macro_rules! enoom {
+    (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
+
+        enoom_derive_type!(pub enum $en; $ext; $($ty, $text;)*);
 
         impl $en {
             pub fn as_str(&self) -> &str {
