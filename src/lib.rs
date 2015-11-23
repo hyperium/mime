@@ -26,6 +26,11 @@ extern crate log;
 #[cfg(test)]
 extern crate test;
 
+extern crate serde;
+
+#[cfg(test)]
+extern crate serde_json;
+
 use std::ascii::AsciiExt;
 use std::fmt;
 use std::iter::Enumerate;
@@ -344,6 +349,27 @@ impl FromStr for Mime {
     }
 }
 
+impl serde::ser::Serialize for Mime {
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+        where S: serde::ser::Serializer
+    {
+        serializer.visit_str(&*format!("{}",self))
+    }
+}
+
+impl serde::de::Deserialize for Mime {
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+        where D: serde::de::Deserializer
+    {
+        let string: String = try!(serde::Deserialize::deserialize(deserializer));
+        let mime: Mime = match FromStr::from_str(&*string) {
+            Ok(mime) => mime,
+            Err(_) => return Err(serde::de::Error::syntax("Invalid serialized mime")),
+        };
+        Ok(mime)
+    }
+}
+
 fn param_from_str(raw: &str, ascii: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> Option<(Param, usize)> {
     let attr;
     debug!("param_from_str, start={}", start);
@@ -528,6 +554,16 @@ mod tests {
     fn test_value_eq_str() {
         assert_eq!(Value::Utf8, "utf-8");
         assert_eq!("utf-8", Value::Utf8);
+    }
+
+    #[test]
+    fn test_serialize_deserialize() {
+        use serde_json;
+
+        let mime = Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap();
+        let serialized = serde_json::to_string(&mime).unwrap();
+        let deserialized: Mime = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(mime, deserialized);
     }
 
     #[cfg(feature = "nightly")]
