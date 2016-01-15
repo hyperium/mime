@@ -240,6 +240,7 @@ enoom! {
     Json, "json";
     WwwFormUrlEncoded, "x-www-form-urlencoded";
     Msgpack, "msgpack";
+    JsonApi, "vnd.api+json";
 
     // multipart/*
     FormData, "form-data";
