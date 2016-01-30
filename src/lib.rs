@@ -18,6 +18,8 @@
 #![doc(html_root_url = "https://hyperium.github.io/mime.rs")]
 #![cfg_attr(test, deny(warnings))]
 #![cfg_attr(all(feature = "nightly", test), feature(test))]
+#![cfg_attr(feature = "heap_size", feature(custom_derive, plugin))]
+#![cfg_attr(feature = "heap_size", plugin(heapsize_plugin))]
 
 #[macro_use]
 extern crate log;
@@ -30,6 +32,9 @@ extern crate serde;
 
 #[cfg(test)]
 extern crate serde_json;
+
+#[cfg(feature = "heap_size")]
+extern crate heapsize;
 
 use std::ascii::AsciiExt;
 use std::fmt;
@@ -67,6 +72,7 @@ macro_rules! inspect(
 /// }
 /// ```
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "heap_size", derive(HeapSizeOf))]
 pub struct Mime<T: AsRef<[Param]> = Vec<Param>>(pub TopLevel, pub SubLevel, pub T);
 
 impl<LHS: AsRef<[Param]>, RHS: AsRef<[Param]>> PartialEq<Mime<RHS>> for Mime<LHS> {
@@ -205,6 +211,16 @@ macro_rules! enoom {
                     $(_s if _s == $text => $en::$ty),*,
                     s => $en::$ext(inspect!(stringify!($ext), s).to_string())
                 })
+            }
+        }
+
+        #[cfg(feature = "heap_size")]
+        impl heapsize::HeapSizeOf for $en {
+            fn heap_size_of_children(&self) -> usize {
+                match *self {
+                    $en::$ext(ref ext) => ext.heap_size_of_children(),
+                    _ => 0,
+                }
             }
         }
     )
