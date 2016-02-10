@@ -251,6 +251,7 @@ enoom! {
     Xml, "xml";
     Javascript, "javascript";
     Css, "css";
+    EventStream, "event-stream";
 
     // common application/*
     Json, "json";

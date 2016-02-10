@@ -17,7 +17,7 @@ serde = "0.6"
 serde_json = "0.6"
 
 [dependencies.heapsize]
-version = "0.2.0"
+version = ">=0.2.0, <0.4"
 optional = true
 
 [dependencies.heapsize_plugin]
