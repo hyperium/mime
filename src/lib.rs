@@ -71,7 +71,7 @@ macro_rules! inspect(
 ///     _ => ()
 /// }
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, Eq)]
 #[cfg_attr(feature = "heap_size", derive(HeapSizeOf))]
 pub struct Mime<T: AsRef<[Param]> = Vec<Param>>(pub TopLevel, pub SubLevel, pub T);
 
@@ -127,7 +127,7 @@ macro_rules! __mime__ident_or_ext {
 macro_rules! enoom {
     (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
 
-        #[derive(Clone, Debug)]
+        #[derive(Clone, Debug, Hash, Eq)]
         pub enum $en {
             $($ty),*,
             $ext(String)
