@@ -11,10 +11,10 @@ keywords = ["mime", "media-extensions", "media-types"]
 
 [dependencies]
 log = "0.3"
-serde = "0.6"
+serde = "0.7"
 
 [dev_dependencies]
-serde_json = "0.6"
+serde_json = "0.7"
 
 [dependencies.heapsize]
 version = ">=0.2.0, <0.4"
