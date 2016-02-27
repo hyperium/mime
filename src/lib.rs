@@ -370,7 +370,7 @@ impl serde::ser::Serialize for Mime {
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
         where S: serde::ser::Serializer
     {
-        serializer.visit_str(&*format!("{}",self))
+        serializer.serialize_str(&*format!("{}",self))
     }
 }
 
@@ -381,7 +381,7 @@ impl serde::de::Deserialize for Mime {
         let string: String = try!(serde::Deserialize::deserialize(deserializer));
         let mime: Mime = match FromStr::from_str(&*string) {
             Ok(mime) => mime,
-            Err(_) => return Err(serde::de::Error::syntax("Invalid serialized mime")),
+            Err(_) => return Err(serde::de::Error::custom("Invalid serialized mime")),
         };
         Ok(mime)
     }
