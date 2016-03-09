@@ -28,8 +28,10 @@ extern crate log;
 #[cfg(test)]
 extern crate test;
 
+#[cfg(feature = "serde")]
 extern crate serde;
 
+#[cfg(feature = "serde")]
 #[cfg(test)]
 extern crate serde_json;
 
@@ -366,6 +368,7 @@ impl FromStr for Mime {
     }
 }
 
+#[cfg(feature = "serde")]
 impl serde::ser::Serialize for Mime {
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
         where S: serde::ser::Serializer
@@ -374,6 +377,7 @@ impl serde::ser::Serialize for Mime {
     }
 }
 
+#[cfg(feature = "serde")]
 impl serde::de::Deserialize for Mime {
     fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
         where D: serde::de::Deserializer
@@ -573,6 +577,7 @@ mod tests {
         assert_eq!("utf-8", Value::Utf8);
     }
 
+    #[cfg(feature = "serde")]
     #[test]
     fn test_serialize_deserialize() {
         use serde_json;
