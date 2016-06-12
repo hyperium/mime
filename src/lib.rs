@@ -259,6 +259,7 @@ enoom! {
     Json, "json";
     WwwFormUrlEncoded, "x-www-form-urlencoded";
     Msgpack, "msgpack";
+    OctetStream, "octet-stream";
 
     // multipart/*
     FormData, "form-data";
