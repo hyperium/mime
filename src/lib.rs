@@ -18,8 +18,6 @@
 #![doc(html_root_url = "https://hyperium.github.io/mime.rs")]
 #![cfg_attr(test, deny(warnings))]
 #![cfg_attr(all(feature = "nightly", test), feature(test))]
-#![cfg_attr(feature = "heap_size", feature(custom_derive, plugin))]
-#![cfg_attr(feature = "heap_size", plugin(heapsize_plugin))]
 
 #[macro_use]
 extern crate log;
@@ -35,7 +33,7 @@ extern crate serde;
 #[cfg(test)]
 extern crate serde_json;
 
-#[cfg(feature = "heap_size")]
+#[cfg(feature = "heapsize")]
 extern crate heapsize;
 
 use std::ascii::AsciiExt;
@@ -74,8 +72,16 @@ macro_rules! inspect(
 /// }
 /// ```
 #[derive(Clone, Debug, Hash, Eq)]
-#[cfg_attr(feature = "heap_size", derive(HeapSizeOf))]
 pub struct Mime<T: AsRef<[Param]> = Vec<Param>>(pub TopLevel, pub SubLevel, pub T);
+
+#[cfg(feature = "heapsize")]
+impl<T: AsRef<[Param]> + heapsize::HeapSizeOf> heapsize::HeapSizeOf for Mime<T> {
+    fn heap_size_of_children(&self) -> usize {
+        self.0.heap_size_of_children() +
+        self.1.heap_size_of_children() +
+        self.2.heap_size_of_children()
+    }
+}
 
 impl<LHS: AsRef<[Param]>, RHS: AsRef<[Param]>> PartialEq<Mime<RHS>> for Mime<LHS> {
     fn eq(&self, other: &Mime<RHS>) -> bool {
@@ -216,7 +222,7 @@ macro_rules! enoom {
             }
         }
 
-        #[cfg(feature = "heap_size")]
+        #[cfg(feature = "heapsize")]
         impl heapsize::HeapSizeOf for $en {
             fn heap_size_of_children(&self) -> usize {
                 match *self {

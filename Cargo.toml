@@ -20,10 +20,6 @@ serde_json = ">=0.7, <0.9"
 version = ">=0.2.0, <0.4"
 optional = true
 
-[dependencies.heapsize_plugin]
-version = "0.1.2"
-optional = true
-
 [features]
-heap_size = ["heapsize", "heapsize_plugin"]
+heap_size = ["heapsize"]
 nightly = []
