@@ -275,6 +275,11 @@ enoom! {
     Gif, "gif";
     Bmp, "bmp";
     Jpeg, "jpeg";
+
+    // audio/*
+    Mpeg, "mpeg";
+    Mp4, "mp4";
+    Ogg, "ogg";
 }
 
 enoom! {
