@@ -408,7 +408,7 @@ fn param_from_str(raw: &str, ascii: &str, iter: &mut Enumerate<Chars>, mut start
     debug!("param_from_str, start={}", start);
     loop {
         match inspect!("attr iter", iter.next()) {
-            Some((i, ' ')) if i == start => start = i + 1,
+            Some((i, ' ')) | Some((i, '\t')) if i == start => start = i + 1,
             Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
             Some((i, c)) if i > start && is_restricted_name_char(c) => (),
             Some((i, '=')) if i > start => match FromStr::from_str(&ascii[start..i]) {
@@ -571,7 +571,7 @@ mod tests {
 
     #[test]
     fn test_get_param() {
-        let mime = Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap();
+        let mime = Mime::from_str("text/plain; charset=utf-8;\tfoo=bar").unwrap();
         assert_eq!(mime.get_param(Attr::Charset), Some(&Value::Utf8));
         assert_eq!(mime.get_param("charset"), Some(&Value::Utf8));
         assert_eq!(mime.get_param("foo").unwrap(), "bar");
