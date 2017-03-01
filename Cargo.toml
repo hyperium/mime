@@ -13,7 +13,7 @@ keywords = ["mime", "media-extensions", "media-types"]
 log = "0.3"
 serde = { version = ">=0.7, <0.9", optional = true }
 
-[dev_dependencies]
+[dev-dependencies]
 serde_json = ">=0.7, <0.9"
 
 [dependencies.heapsize]
