@@ -315,6 +315,10 @@ impl<P: AsRef<[Param]>> Mime<P> {
 impl FromStr for Mime {
     type Err = ();
     fn from_str(raw: &str) -> Result<Mime, ()> {
+        if raw == "*/*" {
+            return Ok(mime!(Star/Star));
+        }
+
         let ascii = raw.to_ascii_lowercase(); // lifetimes :(
         let len = ascii.len();
         let mut iter = ascii.chars().enumerate();
@@ -341,10 +345,14 @@ impl FromStr for Mime {
 
         // sublevel
         let sub;
+        let mut sub_star = false;
         loop {
             match inspect!("sub iter", iter.next()) {
+                Some((i, '*')) if i == start => {
+                    sub_star = true;
+                },
                 Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
-                Some((i, c)) if i > start && is_restricted_name_char(c) => (),
+                Some((i, c)) if !sub_star && i > start && is_restricted_name_char(c) => (),
                 Some((i, ';')) if i > start => match FromStr::from_str(&ascii[start..i]) {
                     Ok(s) => {
                         sub = s;
@@ -559,6 +567,12 @@ mod tests {
         assert_eq!(Mime::from_str("text/plain;charset=\"utf-8\"").unwrap(), mime!(Text/Plain; Charset=Utf8));
         assert_eq!(Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap(),
             mime!(Text/Plain; Charset=Utf8, ("foo")=("bar")));
+        assert_eq!("*/*".parse::<Mime>().unwrap(), mime!(Star/Star));
+        assert_eq!("image/*".parse::<Mime>().unwrap(), mime!(Image/Star));
+        assert_eq!("text/*; charset=utf-8".parse::<Mime>().unwrap(), mime!(Text/Star; Charset=Utf8));
+        assert!("*/png".parse::<Mime>().is_err());
+        assert!("*image/png".parse::<Mime>().is_err());
+        assert!("text/*plain".parse::<Mime>().is_err());
     }
 
     #[test]
