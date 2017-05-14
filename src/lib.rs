@@ -204,6 +204,7 @@ macro_rules! enoom {
         }
 
         impl fmt::Display for $en {
+            #[inline]
             fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
                 fmt.write_str(match *self {
                     $($en::$ty => $text),*,
@@ -299,10 +300,18 @@ enoom! {
 pub type Param = (Attr, Value);
 
 impl<T: AsRef<[Param]>> fmt::Display for Mime<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let Mime(ref top, ref sub, ref params) = *self;
-        try!(write!(fmt, "{}/{}", top, sub));
-        fmt_params(params.as_ref(), fmt)
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        try!(fmt::Display::fmt(&self.0, f));
+        try!(f.write_str("/"));
+        try!(fmt::Display::fmt(&self.1, f));
+        for param in self.2.as_ref() {
+            try!(f.write_str("; "));
+            try!(fmt::Display::fmt(&param.0, f));
+            try!(f.write_str("="));
+            try!(fmt::Display::fmt(&param.1, f));
+        }
+        Ok(())
     }
 }
 
@@ -529,21 +538,6 @@ fn is_restricted_name_char(c: char) -> bool {
     }
 }
 
-
-#[inline]
-fn fmt_params(params: &[Param], fmt: &mut fmt::Formatter) -> fmt::Result {
-    for param in params.iter() {
-        try!(fmt_param(param, fmt));
-    }
-    Ok(())
-}
-
-#[inline]
-fn fmt_param(param: &Param, fmt: &mut fmt::Formatter) -> fmt::Result {
-    let (ref attr, ref value) = *param;
-    write!(fmt, "; {}={}", attr, value)
-}
-
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -616,10 +610,16 @@ mod tests {
 
     #[cfg(feature = "nightly")]
     #[bench]
-    fn bench_show(b: &mut Bencher) {
+    fn bench_fmt(b: &mut Bencher) {
+        use std::fmt::Write;
         let mime = mime!(Text/Plain; Charset=Utf8, ("foo")=("bar"));
         b.bytes = mime.to_string().as_bytes().len() as u64;
-        b.iter(|| mime.to_string())
+        let mut s = String::with_capacity(64);
+        b.iter(|| {
+            let _ = write!(s, "{}", mime);
+            ::test::black_box(&s);
+            unsafe { s.as_mut_vec().set_len(0); }
+        })
     }
 
     #[cfg(feature = "nightly")]
