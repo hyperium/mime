@@ -153,16 +153,10 @@ macro_rules! enoom {
         impl PartialEq for $en {
             #[inline]
             fn eq(&self, other: &$en) -> bool {
-                // This lint is trigged on the smaller enums, Attr and Value.
-                // Having the `_ => false` pattern is a slightly speed win
-                // for the bigger enums, so we loosen this lint because of
-                // that.
-                #[allow(unreachable_patterns)]
                 match (self, other) {
                     $( (&$en::$ty, &$en::$ty) => true ),*,
-                    (&$en::$ext(ref a), _) => a == other.as_str(),
-                    (_, &$en::$ext(ref b)) => self.as_str() == b,
-                    _ => false
+                    (&$en::$ext(ref a), &$en::$ext(ref b)) => a == b,
+                    (_, _) => self.as_str() == other.as_str(),
                 }
             }
         }
