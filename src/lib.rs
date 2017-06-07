@@ -11,582 +11,580 @@
 //! # #[macro_use] extern crate mime;
 //! # fn main() {
 //! let plain_text: mime::Mime = "text/plain;charset=utf-8".parse().unwrap();
-//! assert_eq!(plain_text, mime!(Text/Plain; Charset=Utf8));
+//! assert_eq!(plain_text, mime::TEXT_PLAIN_UTF_8);
 //! # }
 //! ```
 
-#![doc(html_root_url = "https://hyperium.github.io/mime.rs")]
-#![cfg_attr(test, deny(warnings))]
-#![cfg_attr(all(feature = "nightly", test), feature(test))]
+#![doc(html_root_url = "https://docs.rs/mime")]
+//#![cfg_attr(test, deny(warnings))]
 
-#[macro_use]
-extern crate log;
 
-#[cfg(feature = "nightly")]
-#[cfg(test)]
-extern crate test;
+extern crate unicase;
 
-#[cfg(feature = "serde")]
-extern crate serde;
-
-#[cfg(feature = "serde")]
-#[cfg(test)]
-extern crate serde_json;
-
-#[cfg(feature = "heapsize")]
-extern crate heapsize;
-
-use std::ascii::AsciiExt;
 use std::fmt;
-use std::iter::Enumerate;
-use std::str::{FromStr, Chars};
+use std::str::FromStr;
 
-/// Mime, or Media Type. Encapsulates common registers types.
-///
-/// Consider that a traditional mime type contains a "top level type",
-/// a "sub level type", and 0-N "parameters". And they're all strings.
-/// Strings everywhere. Strings mean typos. Rust has type safety. We should
-/// use types!
-///
-/// So, Mime bundles together this data into types so the compiler can catch
-/// your typos.
-///
-/// This improves things so you use match without Strings:
-///
-/// ```rust
-/// use mime::{Mime, TopLevel, SubLevel};
-///
-/// let mime: Mime = "application/json".parse().unwrap();
-///
-/// match mime {
-///     Mime(TopLevel::Application, SubLevel::Json, _) => println!("matched json!"),
-///     _ => ()
-/// }
-/// ```
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd)]
-pub struct Mime<T: AsRef<[Param]> = Vec<Param>>(pub TopLevel, pub SubLevel, pub T);
+mod parse;
 
-#[cfg(feature = "heapsize")]
-impl<T: AsRef<[Param]> + heapsize::HeapSizeOf> heapsize::HeapSizeOf for Mime<T> {
-    fn heap_size_of_children(&self) -> usize {
-        self.0.heap_size_of_children() +
-        self.1.heap_size_of_children() +
-        self.2.heap_size_of_children()
+#[derive(Clone)]
+pub struct Mime {
+    source: Source,
+    slash: usize,
+    plus: Option<usize>,
+    params: Params,
+}
+
+#[derive(Clone, Copy)]
+pub struct Name<'a> {
+    source: &'a str,
+    insensitive: bool,
+}
+
+#[derive(Debug)]
+pub struct FromStrError {
+    inner: parse::ParseError,
+}
+
+#[derive(Clone)]
+enum Source {
+    Atom(u8, &'static str),
+    Dynamic(String),
+}
+
+struct Atom(u8);
+
+impl PartialEq for Atom {
+    fn eq(&self, other: &Atom) -> bool {
+        self.0 == other.0 && self.0 != 0
     }
 }
 
-impl<LHS: AsRef<[Param]>, RHS: AsRef<[Param]>> PartialEq<Mime<RHS>> for Mime<LHS> {
+impl Source {
+    fn as_ref(&self) -> &str {
+        match *self {
+            Source::Atom(_, s) => s,
+            Source::Dynamic(ref s) => s,
+        }
+    }
+}
+
+#[derive(Clone)]
+enum Params {
+    Utf8(usize),
+    Custom(usize, Vec<(Str, Str)>),
+    None,
+}
+
+#[derive(Clone, Copy)]
+struct Str(usize, usize);
+
+impl Mime {
     #[inline]
-    fn eq(&self, other: &Mime<RHS>) -> bool {
-        self.0 == other.0 && self.1 == other.1 && self.2.as_ref() == other.2.as_ref()
+    pub fn type_(&self) -> Name {
+        Name {
+            source: &self.source.as_ref()[..self.slash],
+            insensitive: true,
+        }
     }
-}
 
-/// Easily create a Mime without having to import so many enums.
-///
-/// # Example
-///
-/// ```
-/// # #[macro_use] extern crate mime;
-///
-/// # fn main() {
-/// let json = mime!(Application/Json);
-/// let plain = mime!(Text/Plain; Charset=Utf8);
-/// let text = mime!(Text/Html; Charset=("bar"), ("baz")=("quux"));
-/// let img = mime!(Image/_);
-/// # }
-/// ```
-#[macro_export]
-macro_rules! mime {
-    ($top:tt / $sub:tt) => (
-        mime!($top / $sub;)
-    );
-
-    ($top:tt / $sub:tt ; $($attr:tt = $val:tt),*) => (
-        $crate::Mime(
-            __mime__ident_or_ext!(TopLevel::$top),
-            __mime__ident_or_ext!(SubLevel::$sub),
-            vec![ $((__mime__ident_or_ext!(Attr::$attr), __mime__ident_or_ext!(Value::$val))),* ]
-        )
-    );
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __mime__ident_or_ext {
-    ($enoom:ident::_) => (
-        $crate::$enoom::Star
-    );
-    ($enoom:ident::($inner:expr)) => (
-        $crate::$enoom::Ext($inner.to_string())
-    );
-    ($enoom:ident::$var:ident) => (
-        $crate::$enoom::$var
-    )
-}
-
-macro_rules! enoom {
-    (pub enum $en:ident; $ext:ident; $($ty:ident, $text:expr;)*) => (
-
-        #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd)]
-        pub enum $en {
-            $($ty),*,
-            $ext(String)
-        }
-
-        impl $en {
-            pub fn as_str(&self) -> &str {
-                match *self {
-                    $($en::$ty => $text),*,
-                    $en::$ext(ref s) => &s
-                }
-            }
-        }
-
-        impl ::std::ops::Deref for $en {
-            type Target = str;
-            fn deref(&self) -> &str {
-                self.as_str()
-            }
-        }
-
-        impl PartialEq for $en {
-            #[inline]
-            fn eq(&self, other: &$en) -> bool {
-                match (self, other) {
-                    $( (&$en::$ty, &$en::$ty) => true ),*,
-                    (&$en::$ext(ref a), &$en::$ext(ref b)) => a == b,
-                    (_, _) => self.as_str() == other.as_str(),
-                }
-            }
-        }
-
-        impl PartialEq<String> for $en {
-            fn eq(&self, other: &String) -> bool {
-                self.as_str() == other
-            }
-        }
-
-        impl PartialEq<str> for $en {
-            fn eq(&self, other: &str) -> bool {
-                self.as_str() == other
-            }
-        }
-
-        impl<'a> PartialEq<&'a str> for $en {
-            fn eq(&self, other: &&'a str) -> bool {
-                self.as_str() == *other
-            }
-        }
-
-        impl PartialEq<$en> for String {
-            fn eq(&self, other: &$en) -> bool {
-                self == other.as_str()
-            }
-        }
-
-        impl PartialEq<$en> for str {
-            fn eq(&self, other: &$en) -> bool {
-                self == other.as_str()
-            }
-        }
-
-        impl<'a> PartialEq<$en> for &'a str {
-            fn eq(&self, other: &$en) -> bool {
-                *self == other.as_str()
-            }
-        }
-
-        impl fmt::Display for $en {
-            #[inline]
-            fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-                fmt.write_str(match *self {
-                    $($en::$ty => $text),*,
-                    $en::$ext(ref s) => s
-                })
-            }
-        }
-
-        impl FromStr for $en {
-            type Err = ();
-            fn from_str(s: &str) -> Result<$en, ()> {
-                Ok(match s {
-                    $(_s if _s == $text => $en::$ty),*,
-                    s => $en::$ext(s.to_string())
-                })
-            }
-        }
-
-        #[cfg(feature = "heapsize")]
-        impl heapsize::HeapSizeOf for $en {
-            fn heap_size_of_children(&self) -> usize {
-                match *self {
-                    $en::$ext(ref ext) => ext.heap_size_of_children(),
-                    _ => 0,
-                }
-            }
-        }
-    )
-}
-
-enoom! {
-    pub enum TopLevel;
-    Ext;
-    Star, "*";
-    Text, "text";
-    Image, "image";
-    Audio, "audio";
-    Video, "video";
-    Application, "application";
-    Multipart, "multipart";
-    Message, "message";
-    Model, "model";
-}
-
-enoom! {
-    pub enum SubLevel;
-    Ext;
-    Star, "*";
-
-    // common text/*
-    Plain, "plain";
-    Html, "html";
-    Xml, "xml";
-    Javascript, "javascript";
-    Css, "css";
-    EventStream, "event-stream";
-
-    // common application/*
-    Json, "json";
-    WwwFormUrlEncoded, "x-www-form-urlencoded";
-    Msgpack, "msgpack";
-    OctetStream, "octet-stream";
-
-    // multipart/*
-    FormData, "form-data";
-
-    // common image/*
-    Png, "png";
-    Gif, "gif";
-    Bmp, "bmp";
-    Jpeg, "jpeg";
-
-    // audio/*
-    Mpeg, "mpeg";
-    Mp4, "mp4";
-    Ogg, "ogg";
-}
-
-enoom! {
-    pub enum Attr;
-    Ext;
-    Charset, "charset";
-    Boundary, "boundary";
-    Q, "q";
-}
-
-enoom! {
-    pub enum Value;
-    Ext;
-    Utf8, "utf-8";
-}
-
-pub type Param = (Attr, Value);
-
-impl<T: AsRef<[Param]>> fmt::Display for Mime<T> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // It's much faster to write a single string, as opposed to push
-        // several parts through f.write_str(). So, check for the most common
-        // mime types, and fast track them.
-        if let TopLevel::Text = self.0 {
-            if let SubLevel::Plain = self.1 {
-                let attrs = self.2.as_ref();
-                if attrs.len() == 0 {
-                    return f.write_str("text/plain");
-                } else if &[(Attr::Charset, Value::Utf8)] == attrs {
-                    return f.write_str("text/plain; charset=utf-8");
-                }
-            }
-        } else if let TopLevel::Application = self.0 {
-            if let SubLevel::Json = self.1 {
-                let attrs = self.2.as_ref();
-                if attrs.len() == 0 {
-                    return f.write_str("application/json");
-                }
-            }
-        } else if let TopLevel::Star = self.0 {
-            if let SubLevel::Star = self.1 {
-                let attrs = self.2.as_ref();
-                if attrs.len() == 0 {
-                    return f.write_str("*/*");
-                }
-            }
+    pub fn subtype(&self) -> Name {
+        let end = self.plus.unwrap_or_else(|| {
+            return self.semicolon().unwrap_or(self.source.as_ref().len())
+        });
+        Name {
+            source: &self.source.as_ref()[self.slash + 1..end],
+            insensitive: true,
         }
+    }
 
-        // slower general purpose fmt
-        try!(fmt::Display::fmt(&self.0, f));
-        try!(f.write_str("/"));
-        try!(fmt::Display::fmt(&self.1, f));
-        for param in self.2.as_ref() {
-            try!(f.write_str("; "));
-            try!(fmt::Display::fmt(&param.0, f));
-            try!(f.write_str("="));
-            try!(fmt::Display::fmt(&param.1, f));
+    #[inline]
+    pub fn suffix(&self) -> Option<Name> {
+        let end = self.semicolon().unwrap_or(self.source.as_ref().len());
+        self.plus.map(|idx| Name {
+            source: &self.source.as_ref()[idx + 1..end],
+            insensitive: true,
+        })
+    }
+
+    pub fn get_param<'a, N>(&'a self, attr: N) -> Option<Name<'a>>
+    where N: PartialEq<Name<'a>> {
+        match self.params {
+            Params::Utf8(_) => {
+                if attr == CHARSET {
+                    Some(UTF_8)
+                } else {
+                    None
+                }
+            },
+            Params::Custom(_, ref params) => {
+                for &(ref name, ref value) in params {
+                    let s = Name {
+                        source: &self.source.as_ref()[name.0..name.1],
+                        insensitive: true,
+                    };
+                    if attr == s {
+                        return Some(Name {
+                            source: &self.source.as_ref()[value.0..value.1],
+                            insensitive: attr == CHARSET,
+                        });
+                    }
+                }
+                None
+            },
+            Params::None => None,
         }
-        Ok(())
+    }
+
+    #[inline]
+    fn semicolon(&self) -> Option<usize> {
+        match self.params {
+            Params::Utf8(i) |
+            Params::Custom(i, _) => Some(i),
+            Params::None => None,
+        }
+    }
+
+    fn atom(&self) -> Atom {
+        match self.source {
+            Source::Atom(a, _) => Atom(a),
+            _ => Atom(0),
+        }
     }
 }
 
-impl<P: AsRef<[Param]>> Mime<P> {
-    pub fn get_param<A: PartialEq<Attr>>(&self, attr: A) -> Option<&Value> {
-        self.2.as_ref().iter().find(|&&(ref name, _)| attr == *name).map(|&(_, ref value)| value)
+// Mime ============
+
+fn mime_eq_str(mime: &Mime, s: &str) -> bool {
+    if let Params::Utf8(semicolon) = mime.params {
+        if mime.source.as_ref().len() == s.len() {
+            unicase::eq_ascii(mime.source.as_ref(), s)
+        } else {
+            params_eq(semicolon, mime.source.as_ref(), s)
+        }
+    } else if let Some(semicolon) = mime.semicolon() {
+        params_eq(semicolon, mime.source.as_ref(), s)
+    } else {
+        unicase::eq_ascii(mime.source.as_ref(), s)
+    }
+}
+
+fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
+    if b.len() < semicolon + 1 {
+        false
+    } else if !unicase::eq_ascii(&a[..semicolon], &b[..semicolon]) {
+        false
+    } else {
+        // gotta check for quotes, LWS, and for case senstive names
+        let mut a = &a[semicolon + 1..];
+        let mut b = &b[semicolon + 1..];
+        let mut sensitive;
+
+        loop {
+            a = a.trim();
+            b = b.trim();
+
+            match (a.is_empty(), b.is_empty()) {
+                (true, true) => return true,
+                (true, false) |
+                (false, true) => return false,
+                (false, false) => (),
+            }
+
+            //name
+            if let Some(a_idx) = a.find('=') {
+                let a_name = a[..a_idx].trim_left();
+                if let Some(b_idx) = b.find('=') {
+                    let b_name = b[..b_idx].trim_left();
+                    if !unicase::eq_ascii(a_name, b_name) {
+                        return false;
+                    }
+                    sensitive = a_name != CHARSET;
+                    a = &a[..a_idx];
+                    b = &b[..b_idx];
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+            //value
+            let a_quoted = if a.as_bytes()[0] == b'"' {
+                a = &a[1..];
+                true
+            } else {
+                false
+            };
+            let b_quoted = if b.as_bytes()[0] == b'"' {
+                b = &b[1..];
+                true
+            } else {
+                false
+            };
+
+            let a_end = if a_quoted {
+                if let Some(quote) = a.find('"') {
+                    quote
+                } else {
+                    return false;
+                }
+            } else {
+                a.find(';').unwrap_or(a.len())
+            };
+
+            let b_end = if b_quoted {
+                if let Some(quote) = b.find('"') {
+                    quote
+                } else {
+                    return false;
+                }
+            } else {
+                b.find(';').unwrap_or(b.len())
+            };
+
+            if sensitive {
+                if !unicase::eq_ascii(&a[..a_end], &b[..b_end]) {
+                    return false;
+                }
+            } else {
+                if &a[..a_end] != &b[..b_end] {
+                    return false;
+                }
+            }
+            a = &a[a_end..];
+            b = &b[b_end..];
+        }
+    }
+}
+
+impl PartialEq for Mime {
+    #[inline]
+    fn eq(&self, other: &Mime) -> bool {
+        if self.atom() == other.atom() {
+            true
+        } else {
+            mime_eq_str(self, other.source.as_ref())
+        }
+    }
+}
+
+impl<'a> PartialEq<&'a str> for Mime {
+    #[inline]
+    fn eq(&self, s: & &'a str) -> bool {
+        mime_eq_str(self, *s)
+    }
+}
+
+impl<'a> PartialEq<Mime> for &'a str {
+    #[inline]
+    fn eq(&self, mime: &Mime) -> bool {
+        mime_eq_str(mime, *self)
     }
 }
 
 impl FromStr for Mime {
-    type Err = ();
-    fn from_str(raw: &str) -> Result<Mime, ()> {
-        if raw == "*/*" {
-            return Ok(mime!(Star/Star));
-        }
+    type Err = FromStrError;
 
-        let ascii = raw.to_ascii_lowercase(); // lifetimes :(
-        let len = ascii.len();
-        let mut iter = ascii.chars().enumerate();
-        let mut params = vec![];
-        // toplevel
-        let mut start;
-        let top;
-        loop {
-            match iter.next() {
-                Some((0, c)) if is_restricted_name_first_char(c) => (),
-                Some((i, c)) if i > 0 && is_restricted_name_char(c) => (),
-                Some((i, '/')) if i > 0 => match FromStr::from_str(&ascii[..i]) {
-                    Ok(t) => {
-                        top = t;
-                        start = i + 1;
-                        break;
-                    }
-                    Err(_) => return Err(())
-                },
-                _ => return Err(()) // EOF and no toplevel is no Mime
-            };
-
-        }
-
-        // sublevel
-        let sub;
-        let mut sub_star = false;
-        loop {
-            match iter.next() {
-                Some((i, '*')) if i == start => {
-                    sub_star = true;
-                },
-                Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
-                Some((i, c)) if !sub_star && i > start && is_restricted_name_char(c) => (),
-                Some((i, ';')) if i > start => match FromStr::from_str(&ascii[start..i]) {
-                    Ok(s) => {
-                        sub = s;
-                        start = i + 1;
-                        break;
-                    }
-                    Err(_) => return Err(())
-                },
-                None => match FromStr::from_str(&ascii[start..]) {
-                    Ok(s) => return Ok(Mime(top, s, params)),
-                    Err(_) => return Err(())
-                },
-                _ => return Err(())
-            };
-        }
-
-        // params
-        debug!("starting params, len={}", len);
-        loop {
-            match param_from_str(raw, &ascii, &mut iter, start) {
-                Some((p, end)) => {
-                    params.push(p);
-                    start = end;
-                    if start >= len {
-                        break;
-                    }
-                }
-                None => break
-            }
-        }
-
-        Ok(Mime(top, sub, params))
+    fn from_str(s: &str) -> Result<Mime, Self::Err> {
+        parse::parse(s).map_err(|e| FromStrError { inner: e })
     }
 }
 
-#[cfg(feature = "serde")]
-impl serde::ser::Serialize for Mime {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
-        where S: serde::ser::Serializer
-    {
-        serializer.serialize_str(&*format!("{}",self))
+impl AsRef<str> for Mime {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.source.as_ref()
     }
 }
 
-#[cfg(feature = "serde")]
-impl serde::de::Deserialize for Mime {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
-        where D: serde::de::Deserializer
-    {
-        let string: String = try!(serde::Deserialize::deserialize(deserializer));
-        let mime: Mime = match FromStr::from_str(&*string) {
-            Ok(mime) => mime,
-            Err(_) => return Err(serde::de::Error::custom("Invalid serialized mime")),
-        };
-        Ok(mime)
+impl fmt::Debug for Mime {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self.source.as_ref(), f)
     }
 }
 
-fn param_from_str(raw: &str, ascii: &str, iter: &mut Enumerate<Chars>, mut start: usize) -> Option<(Param, usize)> {
-    let attr;
-    debug!("param_from_str, start={}", start);
-    loop {
-        match iter.next() {
-            Some((i, ' ')) if i == start => start = i + 1,
-            Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
-            Some((i, c)) if i > start && is_restricted_name_char(c) => (),
-            Some((i, '=')) if i > start => match FromStr::from_str(&ascii[start..i]) {
-                Ok(a) => {
-                    attr = a;
-                    start = i + 1;
-                    break;
-                },
-                Err(_) => return None
-            },
-            _ => return None
-        }
-    }
-
-    let value;
-    // values must be restrict-name-char or "anything goes"
-    let mut is_quoted = false;
-
-    {
-        let substr = |a,b| { if attr==Attr::Charset { &ascii[a..b] } else { &raw[a..b] } };
-        let endstr = |a| { if attr==Attr::Charset { &ascii[a..] } else { &raw[a..] } };
-        loop {
-            match iter.next() {
-                Some((i, '"')) if i == start => {
-                    debug!("quoted");
-                    is_quoted = true;
-                    start = i + 1;
-                },
-                Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
-                Some((i, '"')) if i > start && is_quoted => match FromStr::from_str(substr(start,i)) {
-                    Ok(v) => {
-                        value = v;
-                        start = i + 1;
-                        break;
-                    },
-                    Err(_) => return None
-                },
-                Some((i, c)) if i > start && is_quoted || is_restricted_name_char(c) => (),
-                Some((i, ';')) if i > start => match FromStr::from_str(substr(start,i)) {
-                    Ok(v) => {
-                        value = v;
-                        start = i + 1;
-                        break;
-                    },
-                    Err(_) => return None
-                },
-                None => match FromStr::from_str(endstr(start)) {
-                    Ok(v) => {
-                        value = v;
-                        start = raw.len();
-                        break;
-                    },
-                    Err(_) => return None
-                },
-
-                _ => return None
-            }
-        }
-    }
-
-    Some(((attr, value), start))
-}
-
-// From [RFC6838](http://tools.ietf.org/html/rfc6838#section-4.2):
-//
-// > All registered media types MUST be assigned top-level type and
-// > subtype names.  The combination of these names serves to uniquely
-// > identify the media type, and the subtype name facet (or the absence
-// > of one) identifies the registration tree.  Both top-level type and
-// > subtype names are case-insensitive.
-// >
-// > Type and subtype names MUST conform to the following ABNF:
-// >
-// >     type-name = restricted-name
-// >     subtype-name = restricted-name
-// >
-// >     restricted-name = restricted-name-first *126restricted-name-chars
-// >     restricted-name-first  = ALPHA / DIGIT
-// >     restricted-name-chars  = ALPHA / DIGIT / "!" / "#" /
-// >                              "$" / "&" / "-" / "^" / "_"
-// >     restricted-name-chars =/ "." ; Characters before first dot always
-// >                                  ; specify a facet name
-// >     restricted-name-chars =/ "+" ; Characters after last plus always
-// >                                  ; specify a structured syntax suffix
-//
-fn is_restricted_name_first_char(c: char) -> bool {
-    match c {
-        'a'...'z' |
-        '0'...'9' => true,
-        _ => false
+impl fmt::Display for Mime {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self.source.as_ref(), f)
     }
 }
 
-fn is_restricted_name_char(c: char) -> bool {
-    if is_restricted_name_first_char(c) {
-        true
+// Name ============
+
+fn name_eq_str(name: &Name, s: &str) -> bool {
+    if name.insensitive {
+        unicase::eq_ascii(name.source, s)
     } else {
-        match c {
-            '!' |
-            '#' |
-            '$' |
-            '&' |
-            '-' |
-            '^' |
-            '.' |
-            '+' |
-            '_' => true,
-            _ => false
+        name.source == s
+    }
+}
+
+impl<'a, 'b> PartialEq<Name<'b>> for Name<'a> {
+    #[inline]
+    fn eq(&self, other: &Name<'b>) -> bool {
+        if self.insensitive && other.insensitive {
+            unicase::eq_ascii(self.source, other.source)
+        } else {
+            panic!("ahh");
         }
     }
+}
+
+
+impl<'a, 'b> PartialEq<&'b str> for Name<'a> {
+    #[inline]
+    fn eq(&self, other: & &'b str) -> bool {
+        name_eq_str(self, *other)
+    }
+}
+
+impl<'a, 'b> PartialEq<Name<'a>> for &'b str {
+    #[inline]
+    fn eq(&self, other: &Name<'a>) -> bool {
+        name_eq_str(other, *self)
+    }
+}
+
+impl<'a> AsRef<str> for Name<'a> {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.source
+    }
+}
+
+impl<'a> fmt::Debug for Name<'a> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self.source, f)
+    }
+}
+
+impl<'a> fmt::Display for Name<'a> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self.source, f)
+    }
+}
+
+macro_rules! names {
+    ($($id:ident, $e:expr;)*) => (
+        $(
+        pub static $id: Name<'static> = Name {
+            source: $e,
+            insensitive: true,
+        };
+        )*
+    )
+}
+
+names! {
+    STAR, "*";
+
+    TEXT, "text";
+    IMAGE, "image";
+    AUDIO, "audio";
+    VIDEO, "video";
+    APPLICATION, "application";
+    MULTIPART, "multipart";
+    MESSAGE, "message";
+    MODEL, "model";
+
+    // common text/ *
+    PLAIN, "plain";
+    HTML, "html";
+    XML, "xml";
+    JAVASCRIPT, "javascript";
+    CSS, "css";
+    EVENT_STREAM, "event-stream";
+
+    // common application/*
+    JSON, "json";
+    WWW_FORM_URLENCODED, "x-www-form-urlencoded";
+    MSGPACK, "msgpack";
+    OCTET_STREAM, "octet-stream";
+
+    // multipart/*
+    FORM_DATA, "form-data";
+
+    // common image/*
+    PNG, "png";
+    GIF, "gif";
+    BMP, "bmp";
+    JPEG, "jpeg";
+
+    // audio/*
+    MPEG, "mpeg";
+    MP4, "mp4";
+    OGG, "ogg";
+
+    // parameters
+    CHARSET, "charset";
+    BOUNDARY, "boundary";
+    UTF_8, "utf-8";
+}
+
+macro_rules! mimes {
+    ($($id:ident, $($piece:tt),*;)*) => (
+        #[allow(non_camel_case_types)]
+        enum __Atoms {
+            __Dynamic,
+        $(
+            $id,
+        )*
+        }
+
+        $(
+            mime_constant! {
+                $id, $($piece),*
+            }
+        )*
+
+        #[test]
+        fn test_mimes_consts() {
+            [
+            $(
+            mime_constant_test! {
+                $id, $($piece),*
+            }
+            ),*
+            ].iter().enumerate().map(|(pos, &atom)| {
+                assert_eq!(pos + 1, atom as usize, "atom {} in position {}", atom, pos + 1);
+            }).collect::<Vec<()>>();
+        }
+    )
+}
+
+macro_rules! mime_constant {
+    ($id:ident, $src:expr, $slash:expr) => (
+        mime_constant!($id, $src, $slash, None);
+    );
+    ($id:ident, $src:expr, $slash:expr, $plus:expr) => (
+        mime_constant!(FULL $id, $src, $slash, $plus, Params::None);
+    );
+
+    ($id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
+        mime_constant!(FULL $id, $src, $slash, $plus, Params::Utf8($params));
+    );
+
+
+    (FULL $id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
+        pub const $id: Mime = Mime {
+            source: Source::Atom(__Atoms::$id as u8, $src),
+            slash: $slash,
+            plus: $plus,
+            params: $params,
+        };
+    )
+}
+
+
+#[cfg(test)]
+macro_rules! mime_constant_test {
+    ($id:ident, $src:expr, $slash:expr) => (
+        mime_constant_test!($id, $src, $slash, None);
+    );
+    ($id:ident, $src:expr, $slash:expr, $plus:expr) => (
+        mime_constant_test!(FULL $id, $src, $slash, $plus, Params::None);
+    );
+
+    ($id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
+        mime_constant_test!(FULL $id, $src, $slash, $plus, Params::Utf8($params));
+    );
+
+    (FULL $id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => ({
+        let __mime = $id;
+        let __slash = __mime.as_ref().as_bytes()[$slash];
+        assert_eq!(__slash, b'/', "{:?} has {:?} at slash position {:?}", __mime, __slash as char, $slash);
+        if let Some(plus) = __mime.plus {
+            let __c = __mime.as_ref().as_bytes()[plus];
+            assert_eq!(__c, b'+', "{:?} has {:?} at plus position {:?}", __mime, __c as char, plus);
+        } else {
+            assert!(!__mime.as_ref().as_bytes().contains(&b'+'), "{:?} forgot plus", __mime);
+        }
+        if let Params::Utf8(semicolon) = __mime.params {
+            assert_eq!(__mime.as_ref().as_bytes()[semicolon], b';');
+            assert_eq!(&__mime.as_ref()[semicolon..], "; charset=utf-8");
+        } else if let Params::None = __mime.params {
+            assert!(!__mime.as_ref().as_bytes().contains(&b';'));
+        } else {
+            unreachable!();
+        }
+        __mime.atom().0
+    })
+}
+
+
+mimes! {
+    STAR_STAR, "*/*", 1;
+
+    TEXT_PLAIN, "text/plain", 4;
+    TEXT_PLAIN_UTF_8, "text/plain; charset=utf-8", 4, None, 10;
+    TEXT_HTML, "text/html", 4;
+    TEXT_CSS, "text/css", 4;
+    TEXT_JAVSCRIPT, "text/javascript", 4;
+    TEXT_XML, "text/xml", 4;
+    TEXT_EVENT_STREAM, "text/event-stream", 4;
+
+    IMAGE_JPEG, "image/jpeg", 5;
+    IMAGE_GIF, "image/gif", 5;
+    IMAGE_PNG, "image/png", 5;
+    IMAGE_BMP, "image/bmp", 5;
+
+    APPLICATION_JSON, "application/json", 11;
+    APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded", 11;
+    APPLICATION_OCTET_STREAM, "application/octet-stream", 11;
+    APPLICATION_MSGPACK, "application/msgpack", 11;
+
+    MULTIPART_FORM_DATA, "multipart/form-data", 9;
 }
 
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
-    #[cfg(feature = "nightly")]
-    use test::Bencher;
-    use super::{Mime, Value, Attr};
+    use super::*;
 
     #[test]
-    fn test_mime_show() {
-        let mime = mime!(Text/Plain);
+    fn test_type_() {
+        assert_eq!(TEXT_PLAIN.type_(), TEXT);
+    }
+
+
+    #[test]
+    fn test_subtype() {
+        assert_eq!(TEXT_PLAIN.subtype(), PLAIN);
+        assert_eq!(TEXT_PLAIN_UTF_8.subtype(), PLAIN);
+        let mime = Mime::from_str("text/html+xml").unwrap();
+        assert_eq!(mime.subtype(), HTML);
+    }
+
+    #[test]
+    fn test_suffix() {
+        assert_eq!(TEXT_PLAIN.suffix(), None);
+        let mime = Mime::from_str("text/html+xml").unwrap();
+        assert_eq!(mime.suffix(), Some(XML));
+    }
+
+    #[test]
+    fn test_mime_fmt() {
+        let mime = TEXT_PLAIN;
         assert_eq!(mime.to_string(), "text/plain".to_string());
-        let mime = mime!(Text/Plain; Charset=Utf8);
+        let mime = TEXT_PLAIN_UTF_8;
         assert_eq!(mime.to_string(), "text/plain; charset=utf-8".to_string());
     }
 
     #[test]
     fn test_mime_from_str() {
-        assert_eq!(Mime::from_str("text/plain").unwrap(), mime!(Text/Plain));
-        assert_eq!(Mime::from_str("TEXT/PLAIN").unwrap(), mime!(Text/Plain));
-        assert_eq!(Mime::from_str("text/plain; charset=utf-8").unwrap(), mime!(Text/Plain; Charset=Utf8));
-        assert_eq!(Mime::from_str("text/plain;charset=\"utf-8\"").unwrap(), mime!(Text/Plain; Charset=Utf8));
+        assert_eq!(Mime::from_str("text/plain").unwrap(), TEXT_PLAIN);
+        assert_eq!(Mime::from_str("TEXT/PLAIN").unwrap(), TEXT_PLAIN);
+        assert_eq!(Mime::from_str("text/plain; charset=utf-8").unwrap(), TEXT_PLAIN_UTF_8);
+        assert_eq!(Mime::from_str("text/plain;charset=\"utf-8\"").unwrap(), TEXT_PLAIN_UTF_8);
         assert_eq!(Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap(),
-            mime!(Text/Plain; Charset=Utf8, ("foo")=("bar")));
-        assert_eq!("*/*".parse::<Mime>().unwrap(), mime!(Star/Star));
-        assert_eq!("image/*".parse::<Mime>().unwrap(), mime!(Image/Star));
-        assert_eq!("text/*; charset=utf-8".parse::<Mime>().unwrap(), mime!(Text/Star; Charset=Utf8));
+            "text/plain; charset=utf-8; foo=bar");
+        assert_eq!("*/*".parse::<Mime>().unwrap(), STAR_STAR);
+        assert_eq!("image/*".parse::<Mime>().unwrap(), "image/*");
+        assert_eq!("text/*; charset=utf-8".parse::<Mime>().unwrap(), "text/*; charset=utf-8");
         assert!("*/png".parse::<Mime>().is_err());
         assert!("*image/png".parse::<Mime>().is_err());
         assert!("text/*plain".parse::<Mime>().is_err());
@@ -594,62 +592,27 @@ mod tests {
 
     #[test]
     fn test_case_sensitive_values() {
-        assert_eq!(Mime::from_str("multipart/form-data; boundary=ABCDEFG").unwrap(),
-                   mime!(Multipart/FormData; Boundary=("ABCDEFG")));
-        assert_eq!(Mime::from_str("multipart/form-data; charset=BASE64; boundary=ABCDEFG").unwrap(),
-                   mime!(Multipart/FormData; Charset=("base64"), Boundary=("ABCDEFG")));
+        let mime = Mime::from_str("multipart/form-data; charset=BASE64; boundary=ABCDEFG").unwrap();
+        assert_eq!(mime.get_param(CHARSET).unwrap(), "bAsE64");
+        assert_eq!(mime.get_param(BOUNDARY).unwrap(), "ABCDEFG");
+        assert_ne!(mime.get_param(BOUNDARY).unwrap(), "abcdefg");
     }
 
     #[test]
     fn test_get_param() {
+        assert_eq!(TEXT_PLAIN.get_param("charset"), None);
+        assert_eq!(TEXT_PLAIN.get_param("baz"), None);
+
+        assert_eq!(TEXT_PLAIN_UTF_8.get_param("charset"), Some(UTF_8));
+        assert_eq!(TEXT_PLAIN_UTF_8.get_param("baz"), None);
+
         let mime = Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap();
-        assert_eq!(mime.get_param(Attr::Charset), Some(&Value::Utf8));
-        assert_eq!(mime.get_param("charset"), Some(&Value::Utf8));
+        assert_eq!(mime.get_param(CHARSET).unwrap(), "utf-8");
         assert_eq!(mime.get_param("foo").unwrap(), "bar");
         assert_eq!(mime.get_param("baz"), None);
-    }
 
-    #[test]
-    fn test_value_as_str() {
-        assert_eq!(Value::Utf8.as_str(), "utf-8");
-    }
 
-    #[test]
-    fn test_value_eq_str() {
-        assert_eq!(Value::Utf8, "utf-8");
-        assert_eq!("utf-8", Value::Utf8);
-    }
-
-    #[cfg(feature = "serde")]
-    #[test]
-    fn test_serialize_deserialize() {
-        use serde_json;
-
-        let mime = Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap();
-        let serialized = serde_json::to_string(&mime).unwrap();
-        let deserialized: Mime = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(mime, deserialized);
-    }
-
-    #[cfg(feature = "nightly")]
-    #[bench]
-    fn bench_fmt(b: &mut Bencher) {
-        use std::fmt::Write;
-        let mime = mime!(Text/Plain; Charset=Utf8);
-        b.bytes = mime.to_string().as_bytes().len() as u64;
-        let mut s = String::with_capacity(64);
-        b.iter(|| {
-            let _ = write!(s, "{}", mime);
-            ::test::black_box(&s);
-            unsafe { s.as_mut_vec().set_len(0); }
-        })
-    }
-
-    #[cfg(feature = "nightly")]
-    #[bench]
-    fn bench_from_str(b: &mut Bencher) {
-        let s = "text/plain; charset=utf-8; foo=bar";
-        b.bytes = s.as_bytes().len() as u64;
-        b.iter(|| s.parse::<Mime>())
+        let mime = Mime::from_str("text/plain;charset=\"utf-8\"").unwrap();
+        assert_eq!(mime.get_param(CHARSET), Some(UTF_8));
     }
 }

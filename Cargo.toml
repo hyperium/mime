@@ -10,16 +10,4 @@ repository = "https://github.com/hyperium/mime.rs"
 keywords = ["mime", "media-extensions", "media-types"]
 
 [dependencies]
-log = "0.3"
-serde = { version = ">=0.7, <0.9", optional = true }
-
-[dev-dependencies]
-serde_json = ">=0.7, <0.9"
-
-[dependencies.heapsize]
-version = ">=0.2.0, <0.4"
-optional = true
-
-[features]
-heap_size = ["heapsize"]
-nightly = []
+unicase = "2.0"
