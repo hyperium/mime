@@ -31,7 +31,9 @@
 
 extern crate unicase;
 
+use std::cmp::Ordering;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
 mod parse;
@@ -331,6 +333,26 @@ impl PartialEq for Mime {
             (_, 0) => mime_eq_str(self, other.source.as_ref()),
             (a, b) => a == b,
         }
+    }
+}
+
+impl Eq for Mime {}
+
+impl PartialOrd for Mime {
+    fn partial_cmp(&self, other: &Mime) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Mime {
+    fn cmp(&self, other: &Mime) -> Ordering {
+        self.source.as_ref().cmp(other.source.as_ref())
+    }
+}
+
+impl Hash for Mime {
+    fn hash<T: Hasher>(&self, hasher: &mut T) {
+        hasher.write(self.source.as_ref().as_bytes());
     }
 }
 
