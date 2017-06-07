@@ -1,3 +1,4 @@
+use std::ascii::AsciiExt;
 use std::iter::Enumerate;
 use std::str::Bytes;
 
@@ -54,7 +55,7 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
             Some((i, c)) if !sub_star && i > start && is_restricted_name_char(c) => (),
             None => {
                 return Ok(Mime {
-                    source: Source::Dynamic(s.to_owned()),
+                    source: Source::Dynamic(s.to_ascii_lowercase()),
                     slash: slash,
                     plus: plus,
                     params: Params::None,
@@ -67,8 +68,14 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
     // params
     let params = try!(params_from_str(s, &mut iter, start));
 
+    let src = match params {
+        Params::Utf8(_) |
+        Params::None => s.to_ascii_lowercase(),
+        Params::Custom(semicolon, ref indices) => lower_ascii_with_params(s, semicolon, indices),
+    };
+
     Ok(Mime {
-        source: Source::Dynamic(s.to_owned()),
+        source: Source::Dynamic(src),
         slash: slash,
         plus: plus,
         params: params,
@@ -166,6 +173,23 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
     Ok(params)
 }
 
+fn lower_ascii_with_params(s: &str, semi: usize, params: &[(Str, Str)]) -> String {
+    let mut owned = s.to_owned();
+    owned[..semi].make_ascii_lowercase();
+
+    for &(ref name, ref value) in params {
+        owned[name.0..name.1].make_ascii_lowercase();
+        // Since we just converted this part of the string to lowercase,
+        // we can skip the `Name == &str` unicase check and do a faster
+        // memcmp instead.
+        if &owned[name.0..name.1] == CHARSET.source {
+            owned[value.0..value.1].make_ascii_lowercase();
+        }
+    }
+
+    owned
+}
+
 // From [RFC6838](http://tools.ietf.org/html/rfc6838#section-4.2):
 //
 // > All registered media types MUST be assigned top-level type and
@@ -187,21 +211,83 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
 // >                                  ; specify a facet name
 // >     restricted-name-chars =/ "+" ; Characters after last plus always
 // >                                  ; specify a structured syntax suffix
-//
+
+
+macro_rules! byte_map {
+    ($($flag:expr,)*) => ([
+        $($flag != 0,)*
+    ])
+}
+
+
+static RESTRICTED_NAME_FIRST: [bool; 256] = byte_map![
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
+
+static RESTRICTED_NAME_CHAR: [bool; 256] = byte_map![
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
+
 fn is_restricted_name_first_char(c: u8) -> bool {
-    match c {
-        b'a'...b'z' |
-        b'A'...b'Z' |
-        b'0'...b'9' => true,
-        _ => false
-    }
+    RESTRICTED_NAME_FIRST[c as usize]
 }
 
 fn is_restricted_name_char(c: u8) -> bool {
-    if is_restricted_name_first_char(c) {
-        true
-    } else {
-        match c {
+    RESTRICTED_NAME_CHAR[c as usize]
+}
+
+fn is_restricted_quoted_char(c: u8) -> bool {
+    c > 31 && c != 127
+}
+
+#[test]
+fn test_lookup_tables() {
+    for (i, &valid) in RESTRICTED_NAME_FIRST.iter().enumerate() {
+        let i = i as u8;
+        let should = match i {
+            b'a'...b'z' |
+            b'A'...b'Z' |
+            b'0'...b'9' => true,
+            _ => false
+        };
+        assert_eq!(valid, should, "{:?} ({}) should be {}", i as char, i, should);
+    }
+    for (i, &valid) in RESTRICTED_NAME_CHAR.iter().enumerate() {
+        let i = i as u8;
+        let should = match i {
+            b'a'...b'z' |
+            b'A'...b'Z' |
+            b'0'...b'9' |
             b'!' |
             b'#' |
             b'$' |
@@ -212,10 +298,7 @@ fn is_restricted_name_char(c: u8) -> bool {
             b'+' |
             b'_' => true,
             _ => false
-        }
+        };
+        assert_eq!(valid, should, "{:?} ({}) should be {}", i as char, i, should);
     }
-}
-
-fn is_restricted_quoted_char(c: u8) -> bool {
-    c > 31 && c != 127
 }

@@ -5,18 +5,28 @@
 //!
 //! ## What is Mime?
 //!
-//! Example mime string: `text/plain;charset=utf-8`
+//! Example mime string: `text/plain`
 //!
-//! ```rust
-//! # #[macro_use] extern crate mime;
-//! # fn main() {
-//! let plain_text: mime::Mime = "text/plain;charset=utf-8".parse().unwrap();
-//! assert_eq!(plain_text, mime::TEXT_PLAIN_UTF_8);
-//! # }
+//! ```
+//! let plain_text: mime::Mime = "text/plain".parse().unwrap();
+//! assert_eq!(plain_text, mime::TEXT_PLAIN);
+//! ```
+//!
+//! ## Inspecting Mimes
+//!
+//! ```
+//! let mime = mime::TEXT_PLAIN;
+//! match (mime.type_(), mime.subtype()) {
+//!     (mime::TEXT, mime::PLAIN) => println!("plain text!"),
+//!     (mime::TEXT, _) => println!("structured text"),
+//!     _ => println!("not text"),
+//! }
 //! ```
 
 #![doc(html_root_url = "https://docs.rs/mime")]
-//#![cfg_attr(test, deny(warnings))]
+#![deny(warnings)]
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
 
 
 extern crate unicase;
@@ -26,6 +36,7 @@ use std::str::FromStr;
 
 mod parse;
 
+/// A parsed mime or media type.
 #[derive(Clone)]
 pub struct Mime {
     source: Source,
@@ -34,12 +45,27 @@ pub struct Mime {
     params: Params,
 }
 
-#[derive(Clone, Copy)]
+/// A section of a `Mime`.
+///
+/// For instance, for the Mime `image/svg+xml`, it contains 3 `Name`s,
+/// `image`, `svg`, and `xml`.
+///
+/// In most cases, `Name`s are compared ignoring case.
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Name<'a> {
+    // TODO: optimize with an Atom-like thing
+    // There a `const` Names, and so it is possible for the statis strings
+    // to havea different memory address. Additionally, when used in match
+    // statements, the strings are compared with a memcmp, possibly even
+    // if the address and length are the same.
+    //
+    // Being an enum with an Atom variant that is a usize (and without a
+    // string pointer and boolean) would allow for faster comparisons.
     source: &'a str,
     insensitive: bool,
 }
 
+/// An error when parsing a `Mime` from a string.
 #[derive(Debug)]
 pub struct FromStrError {
     inner: parse::ParseError,
@@ -49,14 +75,6 @@ pub struct FromStrError {
 enum Source {
     Atom(u8, &'static str),
     Dynamic(String),
-}
-
-struct Atom(u8);
-
-impl PartialEq for Atom {
-    fn eq(&self, other: &Atom) -> bool {
-        self.0 == other.0 && self.0 != 0
-    }
 }
 
 impl Source {
@@ -79,6 +97,15 @@ enum Params {
 struct Str(usize, usize);
 
 impl Mime {
+    /// Get the top level media type for this `Mime`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mime = mime::TEXT_PLAIN;
+    /// assert_eq!(mime.type_(), "text");
+    /// assert_eq!(mime.type_(), mime::TEXT);
+    /// ```
     #[inline]
     pub fn type_(&self) -> Name {
         Name {
@@ -87,6 +114,15 @@ impl Mime {
         }
     }
 
+    /// Get the subtype of this `Mime`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mime = mime::TEXT_PLAIN;
+    /// assert_eq!(mime.subtype(), "plain");
+    /// assert_eq!(mime.subtype(), mime::PLAIN);
+    /// ```
     #[inline]
     pub fn subtype(&self) -> Name {
         let end = self.plus.unwrap_or_else(|| {
@@ -98,6 +134,18 @@ impl Mime {
         }
     }
 
+    /// Get an optional +suffix for this `Mime`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let svg = "image/svg+xml".parse::<mime::Mime>().unwrap();
+    /// assert_eq!(svg.suffix(), Some(mime::XML));
+    /// assert_eq!(svg.suffix().unwrap(), "xml");
+    ///
+    ///
+    /// assert!(mime::TEXT_PLAIN.suffix().is_none());
+    /// ```
     #[inline]
     pub fn suffix(&self) -> Option<Name> {
         let end = self.semicolon().unwrap_or(self.source.as_ref().len());
@@ -107,6 +155,19 @@ impl Mime {
         })
     }
 
+    /// Look up a parameter by name.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mime = mime::TEXT_PLAIN_UTF_8;
+    /// assert_eq!(mime.get_param(mime::CHARSET), Some(mime::UTF_8));
+    /// assert_eq!(mime.get_param("charset").unwrap(), "utf-8");
+    /// assert!(mime.get_param("boundary").is_none());
+    ///
+    /// let mime = "multipart/form-data; boundary=ABCDEFG".parse::<mime::Mime>().unwrap();
+    /// assert_eq!(mime.get_param(mime::BOUNDARY).unwrap(), "ABCDEFG");
+    /// ```
     pub fn get_param<'a, N>(&'a self, attr: N) -> Option<Name<'a>>
     where N: PartialEq<Name<'a>> {
         match self.params {
@@ -145,10 +206,10 @@ impl Mime {
         }
     }
 
-    fn atom(&self) -> Atom {
+    fn atom(&self) -> u8 {
         match self.source {
-            Source::Atom(a, _) => Atom(a),
-            _ => Atom(0),
+            Source::Atom(a, _) => a,
+            _ => 0,
         }
     }
 }
@@ -260,10 +321,15 @@ fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
 impl PartialEq for Mime {
     #[inline]
     fn eq(&self, other: &Mime) -> bool {
-        if self.atom() == other.atom() {
-            true
-        } else {
-            mime_eq_str(self, other.source.as_ref())
+        match (self.atom(), other.atom()) {
+            // TODO:
+            // This could optimize for when there are no customs parameters.
+            // Any parsed mime has already been lowercased, so if there aren't
+            // any parameters that are case sensistive, this can skip the
+            // unicase::eq_ascii, and just use a memcmp instead.
+            (0, _) |
+            (_, 0) => mime_eq_str(self, other.source.as_ref()),
+            (a, b) => a == b,
         }
     }
 }
@@ -321,18 +387,6 @@ fn name_eq_str(name: &Name, s: &str) -> bool {
     }
 }
 
-impl<'a, 'b> PartialEq<Name<'b>> for Name<'a> {
-    #[inline]
-    fn eq(&self, other: &Name<'b>) -> bool {
-        if self.insensitive && other.insensitive {
-            unicase::eq_ascii(self.source, other.source)
-        } else {
-            panic!("ahh");
-        }
-    }
-}
-
-
 impl<'a, 'b> PartialEq<&'b str> for Name<'a> {
     #[inline]
     fn eq(&self, other: & &'b str) -> bool {
@@ -371,11 +425,20 @@ impl<'a> fmt::Display for Name<'a> {
 macro_rules! names {
     ($($id:ident, $e:expr;)*) => (
         $(
-        pub static $id: Name<'static> = Name {
+        #[doc = $e]
+        pub const $id: Name<'static> = Name {
             source: $e,
             insensitive: true,
         };
         )*
+
+        #[test]
+        fn test_names_macro_consts() {
+            use std::ascii::AsciiExt;
+            $(
+            assert_eq!($id.source.to_ascii_lowercase(), $id.source);
+            )*
+        }
     )
 }
 
@@ -442,7 +505,7 @@ macro_rules! mimes {
         )*
 
         #[test]
-        fn test_mimes_consts() {
+        fn test_mimes_macro_consts() {
             [
             $(
             mime_constant_test! {
@@ -470,6 +533,7 @@ macro_rules! mime_constant {
 
 
     (FULL $id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
+        #[doc = $src]
         pub const $id: Mime = Mime {
             source: Source::Atom(__Atoms::$id as u8, $src),
             slash: $slash,
@@ -511,7 +575,7 @@ macro_rules! mime_constant_test {
         } else {
             unreachable!();
         }
-        __mime.atom().0
+        __mime.atom()
     })
 }
 
@@ -560,6 +624,14 @@ mod tests {
     }
 
     #[test]
+    fn test_matching() {
+        match (TEXT_PLAIN.type_(), TEXT_PLAIN.subtype()) {
+            (TEXT, PLAIN) => (),
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
     fn test_suffix() {
         assert_eq!(TEXT_PLAIN.suffix(), None);
         let mime = Mime::from_str("text/html+xml").unwrap();
@@ -569,9 +641,9 @@ mod tests {
     #[test]
     fn test_mime_fmt() {
         let mime = TEXT_PLAIN;
-        assert_eq!(mime.to_string(), "text/plain".to_string());
+        assert_eq!(mime.to_string(), "text/plain");
         let mime = TEXT_PLAIN_UTF_8;
-        assert_eq!(mime.to_string(), "text/plain; charset=utf-8".to_string());
+        assert_eq!(mime.to_string(), "text/plain; charset=utf-8");
     }
 
     #[test]
@@ -580,11 +652,25 @@ mod tests {
         assert_eq!(Mime::from_str("TEXT/PLAIN").unwrap(), TEXT_PLAIN);
         assert_eq!(Mime::from_str("text/plain; charset=utf-8").unwrap(), TEXT_PLAIN_UTF_8);
         assert_eq!(Mime::from_str("text/plain;charset=\"utf-8\"").unwrap(), TEXT_PLAIN_UTF_8);
-        assert_eq!(Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap(),
-            "text/plain; charset=utf-8; foo=bar");
+
+        let upper = Mime::from_str("TEXT/PLAIN").unwrap();
+        assert_eq!(upper, TEXT_PLAIN);
+        assert_eq!(upper.type_(), TEXT);
+        assert_eq!(upper.subtype(), PLAIN);
+
+
+        let extended = Mime::from_str("TEXT/PLAIN; CHARSET=UTF-8; FOO=BAR").unwrap();
+        assert_eq!(extended, "text/plain; charset=utf-8; foo=BAR");
+        assert_eq!(extended.get_param("charset").unwrap(), "utf-8");
+        assert_eq!(extended.get_param("foo").unwrap(), "BAR");
+
+
+        // stars
         assert_eq!("*/*".parse::<Mime>().unwrap(), STAR_STAR);
         assert_eq!("image/*".parse::<Mime>().unwrap(), "image/*");
         assert_eq!("text/*; charset=utf-8".parse::<Mime>().unwrap(), "text/*; charset=utf-8");
+
+        // parse errors
         assert!("*/png".parse::<Mime>().is_err());
         assert!("*image/png".parse::<Mime>().is_err());
         assert!("text/*plain".parse::<Mime>().is_err());
@@ -614,5 +700,24 @@ mod tests {
 
         let mime = Mime::from_str("text/plain;charset=\"utf-8\"").unwrap();
         assert_eq!(mime.get_param(CHARSET), Some(UTF_8));
+    }
+
+    #[test]
+    fn test_name_eq() {
+        assert_eq!(TEXT, TEXT);
+        assert_eq!(TEXT, "text");
+        assert_eq!("text", TEXT);
+        assert_eq!(TEXT, "TEXT");
+
+        let param = Name {
+            source: "ABC",
+            insensitive: false,
+        };
+
+        assert_eq!(param, param);
+        assert_eq!(param, "ABC");
+        assert_eq!("ABC", param);
+        assert_ne!(param, "abc");
+        assert_ne!("abc", param);
     }
 }
