@@ -53,7 +53,7 @@ pub struct Mime {
 /// `image`, `svg`, and `xml`.
 ///
 /// In most cases, `Name`s are compared ignoring case.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Name<'a> {
     // TODO: optimize with an Atom-like thing
     // There a `const` Names, and so it is possible for the statis strings
