@@ -3,7 +3,7 @@
 name = "mime"
 version = "0.2.6"
 authors = ["Sean McArthur <sean.monstar@gmail.com>"]
-license = "MIT"
+license = "MIT/Apache-2.0"
 description = "Strongly Typed Mimes"
 documentation = "http://hyperium.github.io/mime.rs"
 repository = "https://github.com/hyperium/mime.rs"
