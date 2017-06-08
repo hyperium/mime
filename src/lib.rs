@@ -605,6 +605,7 @@ macro_rules! mime_constant_test {
 mimes! {
     STAR_STAR, "*/*", 1;
 
+    TEXT_STAR, "text/*", 4;
     TEXT_PLAIN, "text/plain", 4;
     TEXT_PLAIN_UTF_8, "text/plain; charset=utf-8", 4, None, 10;
     TEXT_HTML, "text/html", 4;
@@ -613,6 +614,7 @@ mimes! {
     TEXT_XML, "text/xml", 4;
     TEXT_EVENT_STREAM, "text/event-stream", 4;
 
+    IMAGE_STAR, "image/*", 5;
     IMAGE_JPEG, "image/jpeg", 5;
     IMAGE_GIF, "image/gif", 5;
     IMAGE_PNG, "image/png", 5;
