@@ -2,7 +2,7 @@ use std::ascii::AsciiExt;
 use std::iter::Enumerate;
 use std::str::Bytes;
 
-use super::{Mime, Source, Params, Str, CHARSET, UTF_8};
+use super::{Mime, Source, Params, Indexed, CHARSET, UTF_8};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -96,7 +96,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
                 Some((i, c)) if i > start && is_restricted_name_char(c) => (),
                 Some((i, b'=')) if i > start => {
-                    name = Str(start, i);
+                    name = Indexed(start, i);
                     start = i + 1;
                     break 'name;
                 },
@@ -113,7 +113,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
             if is_quoted {
                 match iter.next() {
                     Some((i, b'"')) if i > start => {
-                        value = Str(start, i);
+                        value = Indexed(start, i);
                         start = i + 1;
                         break 'value;
                     },
@@ -131,12 +131,12 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                     Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
                     Some((i, c)) if i > start && is_restricted_name_char(c) => (),
                     Some((i, b';')) if i > start => {
-                        value = Str(start, i);
+                        value = Indexed(start, i);
                         start = i + 1;
                         break 'value;
                     }
                     None => {
-                        value = Str(start, s.len());
+                        value = Indexed(start, s.len());
                         start = s.len();
                         break 'value;
                     },
@@ -149,8 +149,8 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
         match params {
             Params::Utf8(i) => {
                 let i = i + 2;
-                let charset = Str(i, "charset".len() + i);
-                let utf8 = Str(charset.1 + 1, charset.1 + "utf-8".len() + 1);
+                let charset = Indexed(i, "charset".len() + i);
+                let utf8 = Indexed(charset.1 + 1, charset.1 + "utf-8".len() + 1);
                 params = Params::Custom(semicolon, vec![
                     (charset, utf8),
                     (name, value),
@@ -173,7 +173,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
     Ok(params)
 }
 
-fn lower_ascii_with_params(s: &str, semi: usize, params: &[(Str, Str)]) -> String {
+fn lower_ascii_with_params(s: &str, semi: usize, params: &[(Indexed, Indexed)]) -> String {
     let mut owned = s.to_owned();
     owned[..semi].make_ascii_lowercase();
 

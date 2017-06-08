@@ -91,12 +91,12 @@ impl Source {
 #[derive(Clone)]
 enum Params {
     Utf8(usize),
-    Custom(usize, Vec<(Str, Str)>),
+    Custom(usize, Vec<(Indexed, Indexed)>),
     None,
 }
 
 #[derive(Clone, Copy)]
-struct Str(usize, usize);
+struct Indexed(usize, usize);
 
 impl Mime {
     /// Get the top level media type for this `Mime`.
