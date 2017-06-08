@@ -475,6 +475,7 @@ names! {
     MULTIPART, "multipart";
     MESSAGE, "message";
     MODEL, "model";
+    FONT, "font";
 
     // common text/ *
     PLAIN, "plain";
@@ -482,6 +483,7 @@ names! {
     XML, "xml";
     JAVASCRIPT, "javascript";
     CSS, "css";
+    CSV, "csv";
     EVENT_STREAM, "event-stream";
 
     // common application/*
@@ -500,6 +502,7 @@ names! {
     JPEG, "jpeg";
 
     // audio/*
+    BASIC, "basic";
     MPEG, "mpeg";
     MP4, "mp4";
     OGG, "ogg";
