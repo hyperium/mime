@@ -632,6 +632,7 @@ mimes! {
 }
 
 #[deprecated(since="0.3.1", note="please use `TEXT_JAVASCRIPT` instead")]
+#[doc(hidden)]
 pub const TEXT_JAVSCRIPT: Mime = TEXT_JAVASCRIPT;
 
 
