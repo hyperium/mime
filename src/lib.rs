@@ -613,7 +613,7 @@ mimes! {
     TEXT_PLAIN_UTF_8, "text/plain; charset=utf-8", 4, None, 10;
     TEXT_HTML, "text/html", 4;
     TEXT_CSS, "text/css", 4;
-    TEXT_JAVSCRIPT, "text/javascript", 4;
+    TEXT_JAVASCRIPT, "text/javascript", 4;
     TEXT_XML, "text/xml", 4;
     TEXT_EVENT_STREAM, "text/event-stream", 4;
 
@@ -630,6 +630,10 @@ mimes! {
 
     MULTIPART_FORM_DATA, "multipart/form-data", 9;
 }
+
+#[deprecated(since="0.3.1", note="please use `TEXT_JAVASCRIPT` instead")]
+pub const TEXT_JAVSCRIPT: Mime = TEXT_JAVASCRIPT;
+
 
 #[cfg(test)]
 mod tests {
