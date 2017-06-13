@@ -696,6 +696,7 @@ mod tests {
         assert_eq!(extended.get_param("charset").unwrap(), "utf-8");
         assert_eq!(extended.get_param("foo").unwrap(), "BAR");
 
+        Mime::from_str("multipart/form-data; boundary=--------foobar").unwrap();
 
         // stars
         assert_eq!("*/*".parse::<Mime>().unwrap(), STAR_STAR);
@@ -703,9 +704,13 @@ mod tests {
         assert_eq!("text/*; charset=utf-8".parse::<Mime>().unwrap(), "text/*; charset=utf-8");
 
         // parse errors
-        assert!("*/png".parse::<Mime>().is_err());
-        assert!("*image/png".parse::<Mime>().is_err());
-        assert!("text/*plain".parse::<Mime>().is_err());
+        Mime::from_str("f o o / bar").unwrap_err();
+        Mime::from_str("text\n/plain").unwrap_err();
+        Mime::from_str("text\r/plain").unwrap_err();
+        Mime::from_str("text/\r\nplain").unwrap_err();
+        Mime::from_str("text/plain;\r\ncharset=utf-8").unwrap_err();
+        Mime::from_str("text/plain; charset=\r\nutf-8").unwrap_err();
+        Mime::from_str("text/plain; charset=\"\r\nutf-8\"").unwrap_err();
     }
 
     #[test]

@@ -9,7 +9,10 @@ pub enum ParseError {
     MissingSlash,
     MissingEqual,
     MissingQuote,
-    InvalidToken,
+    InvalidToken {
+        pos: usize,
+        byte: u8,
+    },
 }
 
 pub fn parse(s: &str) -> Result<Mime, ParseError> {
@@ -23,28 +26,25 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
     let slash;
     loop {
         match iter.next() {
-            Some((0, c)) if is_restricted_name_first_char(c) => (),
-            Some((i, c)) if i > 0 && is_restricted_name_char(c) => (),
+            Some((_, c)) if is_token(c) => (),
             Some((i, b'/')) if i > 0 => {
                 slash = i;
                 start = i + 1;
                 break;
             },
             None => return Err(ParseError::MissingSlash), // EOF and no toplevel is no Mime
-            _ => return Err(ParseError::InvalidToken)
+            Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                pos: pos,
+                byte: byte,
+            })
         };
 
     }
 
     // sublevel
     let mut plus = None;
-    let mut sub_star = false;
     loop {
         match iter.next() {
-            Some((i, b'*')) if i == start => {
-                sub_star = true;
-            },
-            Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
             Some((i, b'+')) if i > start => {
                 plus = Some(i);
             },
@@ -52,7 +52,7 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
                 start = i;
                 break;
             },
-            Some((i, c)) if !sub_star && i > start && is_restricted_name_char(c) => (),
+            Some((_, c)) if is_token(c) => (),
             None => {
                 return Ok(Mime {
                     source: Source::Dynamic(s.to_ascii_lowercase()),
@@ -61,7 +61,10 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
                     params: Params::None,
                 });
             },
-            _ => return Err(ParseError::InvalidToken)
+            Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                pos: pos,
+                byte: byte,
+            })
         };
     }
 
@@ -93,15 +96,17 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
         'name: loop {
             match iter.next() {
                 Some((i, b' ')) if i == start => start = i + 1,
-                Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
-                Some((i, c)) if i > start && is_restricted_name_char(c) => (),
+                Some((_, c)) if is_token(c) => (),
                 Some((i, b'=')) if i > start => {
                     name = Indexed(start, i);
                     start = i + 1;
                     break 'name;
                 },
                 None => return Err(ParseError::MissingEqual),
-                _ => return Err(ParseError::InvalidToken),
+                Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                    pos: pos,
+                    byte: byte,
+                }),
             }
         }
 
@@ -119,7 +124,10 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                     },
                     Some((_, c)) if is_restricted_quoted_char(c) => (),
                     None => return Err(ParseError::MissingQuote),
-                    _ => return Err(ParseError::InvalidToken),
+                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                        pos: pos,
+                        byte: byte,
+                    }),
                 }
 
             } else {
@@ -128,8 +136,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                         is_quoted = true;
                         start = i + 1;
                     },
-                    Some((i, c)) if i == start && is_restricted_name_first_char(c) => (),
-                    Some((i, c)) if i > start && is_restricted_name_char(c) => (),
+                    Some((_, c)) if is_token(c) => (),
                     Some((i, b';')) if i > start => {
                         value = Indexed(start, i);
                         start = i + 1;
@@ -141,7 +148,10 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                         break 'value;
                     },
 
-                    _ => return Err(ParseError::InvalidToken),
+                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                        pos: pos,
+                        byte: byte,
+                    }),
                 }
             }
         }
@@ -212,6 +222,20 @@ fn lower_ascii_with_params(s: &str, semi: usize, params: &[(Indexed, Indexed)]) 
 // >     restricted-name-chars =/ "+" ; Characters after last plus always
 // >                                  ; specify a structured syntax suffix
 
+// However, [HTTP](https://tools.ietf.org/html/rfc7231#section-3.1.1.1):
+//
+// >     media-type = type "/" subtype *( OWS ";" OWS parameter )
+// >     type       = token
+// >     subtype    = token
+// >     parameter  = token "=" ( token / quoted-string )
+//
+// Where token is defined as:
+//
+// >     token = 1*tchar
+// >     tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+// >        "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+//
+// So, clearly, ¯\_(Ä_/¯
 
 macro_rules! byte_map {
     ($($flag:expr,)*) => ([
@@ -219,35 +243,15 @@ macro_rules! byte_map {
     ])
 }
 
-
-static RESTRICTED_NAME_FIRST: [bool; 256] = byte_map![
+static TOKEN_MAP: [bool; 256] = byte_map![
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-];
-
-static RESTRICTED_NAME_CHAR: [bool; 256] = byte_map![
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0,
+    0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
-    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -258,12 +262,8 @@ static RESTRICTED_NAME_CHAR: [bool; 256] = byte_map![
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
-fn is_restricted_name_first_char(c: u8) -> bool {
-    RESTRICTED_NAME_FIRST[c as usize]
-}
-
-fn is_restricted_name_char(c: u8) -> bool {
-    RESTRICTED_NAME_CHAR[c as usize]
+fn is_token(c: u8) -> bool {
+    TOKEN_MAP[c as usize]
 }
 
 fn is_restricted_quoted_char(c: u8) -> bool {
@@ -272,17 +272,7 @@ fn is_restricted_quoted_char(c: u8) -> bool {
 
 #[test]
 fn test_lookup_tables() {
-    for (i, &valid) in RESTRICTED_NAME_FIRST.iter().enumerate() {
-        let i = i as u8;
-        let should = match i {
-            b'a'...b'z' |
-            b'A'...b'Z' |
-            b'0'...b'9' => true,
-            _ => false
-        };
-        assert_eq!(valid, should, "{:?} ({}) should be {}", i as char, i, should);
-    }
-    for (i, &valid) in RESTRICTED_NAME_CHAR.iter().enumerate() {
+    for (i, &valid) in TOKEN_MAP.iter().enumerate() {
         let i = i as u8;
         let should = match i {
             b'a'...b'z' |
@@ -291,12 +281,18 @@ fn test_lookup_tables() {
             b'!' |
             b'#' |
             b'$' |
+            b'%' |
             b'&' |
-            b'-' |
-            b'^' |
-            b'.' |
+            b'\'' |
+            b'*' |
             b'+' |
-            b'_' => true,
+            b'-' |
+            b'.' |
+            b'^' |
+            b'_' |
+            b'`' |
+            b'|' |
+            b'~' => true,
             _ => false
         };
         assert_eq!(valid, should, "{:?} ({}) should be {}", i as char, i, should);
