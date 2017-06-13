@@ -23,7 +23,7 @@
 //! }
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/mime/0.3.1")]
+#![doc(html_root_url = "https://docs.rs/mime/0.3.2")]
 #![deny(warnings)]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
