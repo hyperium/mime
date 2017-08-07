@@ -35,6 +35,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+use std::slice;
 
 mod parse;
 
@@ -172,31 +173,24 @@ impl Mime {
     /// ```
     pub fn get_param<'a, N>(&'a self, attr: N) -> Option<Name<'a>>
     where N: PartialEq<Name<'a>> {
-        match self.params {
-            ParamSource::Utf8(_) => {
-                if attr == CHARSET {
-                    Some(UTF_8)
-                } else {
-                    None
-                }
-            },
+        self.params().find(|e| attr == e.0).map(|e| e.1)
+    }
+
+    /// Returns an iterator over the parameters.
+    #[inline]
+    pub fn params<'a>(&'a self) -> Params<'a> {
+        let inner = match self.params {
+            ParamSource::Utf8(_) => ParamsInner::Utf8,
             ParamSource::Custom(_, ref params) => {
-                for &(ref name, ref value) in params {
-                    let s = Name {
-                        source: &self.source.as_ref()[name.0..name.1],
-                        insensitive: true,
-                    };
-                    if attr == s {
-                        return Some(Name {
-                            source: &self.source.as_ref()[value.0..value.1],
-                            insensitive: attr == CHARSET,
-                        });
-                    }
+                ParamsInner::Custom {
+                    source: &self.source,
+                    params: params.iter(),
                 }
-                None
-            },
-            ParamSource::None => None,
-        }
+            }
+            ParamSource::None => ParamsInner::None,
+        };
+
+        Params(inner)
     }
 
     #[inline]
@@ -441,6 +435,64 @@ impl<'a> fmt::Display for Name<'a> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(self.source, f)
+    }
+}
+
+// Params ===================
+
+enum ParamsInner<'a> {
+    Utf8,
+    Custom {
+        source: &'a Source,
+        params: slice::Iter<'a, (Indexed, Indexed)>,
+    },
+    None,
+}
+
+/// An iterator over the parameters of a MIME.
+pub struct Params<'a>(ParamsInner<'a>);
+
+impl<'a> fmt::Debug for Params<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Params").finish()
+    }
+}
+
+impl<'a> Iterator for Params<'a> {
+    type Item = (Name<'a>, Name<'a>);
+
+    #[inline]
+    fn next(&mut self) -> Option<(Name<'a>, Name<'a>)> {
+        match self.0 {
+            ParamsInner::Utf8 => {
+                let value = (CHARSET, UTF_8);
+                self.0 = ParamsInner::None;
+                Some(value)
+            }
+            ParamsInner::Custom { source, ref mut params } => {
+                params.next().map(|&(name, value)| {
+                    let name = Name {
+                        source: &source.as_ref()[name.0..name.1],
+                        insensitive: true,
+                    };
+                    let value = Name {
+                        source: &source.as_ref()[value.0..value.1],
+                        insensitive: name == CHARSET,
+                    };
+                    (name, value)
+                })
+            }
+            ParamsInner::None => None
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self.0 {
+            ParamsInner::Utf8 => (1, Some(1)),
+            ParamsInner::Custom { ref params, .. } => params.size_hint(),
+            ParamsInner::None => (0, Some(0)),
+        }
     }
 }
 
