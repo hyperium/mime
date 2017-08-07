@@ -44,7 +44,7 @@ pub struct Mime {
     source: Source,
     slash: usize,
     plus: Option<usize>,
-    params: Params,
+    params: ParamSource,
 }
 
 /// A section of a `Mime`.
@@ -89,7 +89,7 @@ impl Source {
 }
 
 #[derive(Clone)]
-enum Params {
+enum ParamSource {
     Utf8(usize),
     Custom(usize, Vec<(Indexed, Indexed)>),
     None,
@@ -173,14 +173,14 @@ impl Mime {
     pub fn get_param<'a, N>(&'a self, attr: N) -> Option<Name<'a>>
     where N: PartialEq<Name<'a>> {
         match self.params {
-            Params::Utf8(_) => {
+            ParamSource::Utf8(_) => {
                 if attr == CHARSET {
                     Some(UTF_8)
                 } else {
                     None
                 }
             },
-            Params::Custom(_, ref params) => {
+            ParamSource::Custom(_, ref params) => {
                 for &(ref name, ref value) in params {
                     let s = Name {
                         source: &self.source.as_ref()[name.0..name.1],
@@ -195,16 +195,16 @@ impl Mime {
                 }
                 None
             },
-            Params::None => None,
+            ParamSource::None => None,
         }
     }
 
     #[inline]
     fn semicolon(&self) -> Option<usize> {
         match self.params {
-            Params::Utf8(i) |
-            Params::Custom(i, _) => Some(i),
-            Params::None => None,
+            ParamSource::Utf8(i) |
+            ParamSource::Custom(i, _) => Some(i),
+            ParamSource::None => None,
         }
     }
 
@@ -219,7 +219,7 @@ impl Mime {
 // Mime ============
 
 fn mime_eq_str(mime: &Mime, s: &str) -> bool {
-    if let Params::Utf8(semicolon) = mime.params {
+    if let ParamSource::Utf8(semicolon) = mime.params {
         if mime.source.as_ref().len() == s.len() {
             unicase::eq_ascii(mime.source.as_ref(), s)
         } else {
@@ -549,11 +549,11 @@ macro_rules! mime_constant {
         mime_constant!($id, $src, $slash, None);
     );
     ($id:ident, $src:expr, $slash:expr, $plus:expr) => (
-        mime_constant!(FULL $id, $src, $slash, $plus, Params::None);
+        mime_constant!(FULL $id, $src, $slash, $plus, ParamSource::None);
     );
 
     ($id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
-        mime_constant!(FULL $id, $src, $slash, $plus, Params::Utf8($params));
+        mime_constant!(FULL $id, $src, $slash, $plus, ParamSource::Utf8($params));
     );
 
 
@@ -575,11 +575,11 @@ macro_rules! mime_constant_test {
         mime_constant_test!($id, $src, $slash, None);
     );
     ($id:ident, $src:expr, $slash:expr, $plus:expr) => (
-        mime_constant_test!(FULL $id, $src, $slash, $plus, Params::None);
+        mime_constant_test!(FULL $id, $src, $slash, $plus, ParamSource::None);
     );
 
     ($id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
-        mime_constant_test!(FULL $id, $src, $slash, $plus, Params::Utf8($params));
+        mime_constant_test!(FULL $id, $src, $slash, $plus, ParamSource::Utf8($params));
     );
 
     (FULL $id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => ({
@@ -592,10 +592,10 @@ macro_rules! mime_constant_test {
         } else {
             assert!(!__mime.as_ref().as_bytes().contains(&b'+'), "{:?} forgot plus", __mime);
         }
-        if let Params::Utf8(semicolon) = __mime.params {
+        if let ParamSource::Utf8(semicolon) = __mime.params {
             assert_eq!(__mime.as_ref().as_bytes()[semicolon], b';');
             assert_eq!(&__mime.as_ref()[semicolon..], "; charset=utf-8");
-        } else if let Params::None = __mime.params {
+        } else if let ParamSource::None = __mime.params {
             assert!(!__mime.as_ref().as_bytes().contains(&b';'));
         } else {
             unreachable!();

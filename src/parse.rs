@@ -2,7 +2,7 @@ use std::ascii::AsciiExt;
 use std::iter::Enumerate;
 use std::str::Bytes;
 
-use super::{Mime, Source, Params, Indexed, CHARSET, UTF_8};
+use super::{Mime, Source, ParamSource, Indexed, CHARSET, UTF_8};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -58,7 +58,7 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
                     source: Source::Dynamic(s.to_ascii_lowercase()),
                     slash: slash,
                     plus: plus,
-                    params: Params::None,
+                    params: ParamSource::None,
                 });
             },
             Some((pos, byte)) => return Err(ParseError::InvalidToken {
@@ -72,9 +72,9 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
     let params = try!(params_from_str(s, &mut iter, start));
 
     let src = match params {
-        Params::Utf8(_) |
-        Params::None => s.to_ascii_lowercase(),
-        Params::Custom(semicolon, ref indices) => lower_ascii_with_params(s, semicolon, indices),
+        ParamSource::Utf8(_) |
+        ParamSource::None => s.to_ascii_lowercase(),
+        ParamSource::Custom(semicolon, ref indices) => lower_ascii_with_params(s, semicolon, indices),
     };
 
     Ok(Mime {
@@ -86,10 +86,10 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
 }
 
 
-fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Result<Params, ParseError> {
+fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Result<ParamSource, ParseError> {
     let semicolon = start;
     start += 1;
-    let mut params = Params::None;
+    let mut params = ParamSource::None;
     'params: while start < s.len() {
         let name;
         // name
@@ -157,26 +157,26 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
         }
 
         match params {
-            Params::Utf8(i) => {
+            ParamSource::Utf8(i) => {
                 let i = i + 2;
                 let charset = Indexed(i, "charset".len() + i);
                 let utf8 = Indexed(charset.1 + 1, charset.1 + "utf-8".len() + 1);
-                params = Params::Custom(semicolon, vec![
+                params = ParamSource::Custom(semicolon, vec![
                     (charset, utf8),
                     (name, value),
                 ]);
             },
-            Params::Custom(_, ref mut vec) => {
+            ParamSource::Custom(_, ref mut vec) => {
                 vec.push((name, value));
             },
-            Params::None => {
+            ParamSource::None => {
                 if semicolon + 2 == name.0 && CHARSET == &s[name.0..name.1] {
                     if UTF_8 == &s[value.0..value.1] {
-                        params = Params::Utf8(semicolon);
+                        params = ParamSource::Utf8(semicolon);
                         continue 'params;
                     }
                 }
-                params = Params::Custom(semicolon, vec![(name, value)]);
+                params = ParamSource::Custom(semicolon, vec![(name, value)]);
             },
         }
     }
