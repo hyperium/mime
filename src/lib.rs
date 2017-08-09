@@ -35,6 +35,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+use std::slice;
 
 mod parse;
 
@@ -44,7 +45,7 @@ pub struct Mime {
     source: Source,
     slash: usize,
     plus: Option<usize>,
-    params: Params,
+    params: ParamSource,
 }
 
 /// A section of a `Mime`.
@@ -89,7 +90,7 @@ impl Source {
 }
 
 #[derive(Clone)]
-enum Params {
+enum ParamSource {
     Utf8(usize),
     Custom(usize, Vec<(Indexed, Indexed)>),
     None,
@@ -172,39 +173,32 @@ impl Mime {
     /// ```
     pub fn get_param<'a, N>(&'a self, attr: N) -> Option<Name<'a>>
     where N: PartialEq<Name<'a>> {
-        match self.params {
-            Params::Utf8(_) => {
-                if attr == CHARSET {
-                    Some(UTF_8)
-                } else {
-                    None
+        self.params().find(|e| attr == e.0).map(|e| e.1)
+    }
+
+    /// Returns an iterator over the parameters.
+    #[inline]
+    pub fn params<'a>(&'a self) -> Params<'a> {
+        let inner = match self.params {
+            ParamSource::Utf8(_) => ParamsInner::Utf8,
+            ParamSource::Custom(_, ref params) => {
+                ParamsInner::Custom {
+                    source: &self.source,
+                    params: params.iter(),
                 }
-            },
-            Params::Custom(_, ref params) => {
-                for &(ref name, ref value) in params {
-                    let s = Name {
-                        source: &self.source.as_ref()[name.0..name.1],
-                        insensitive: true,
-                    };
-                    if attr == s {
-                        return Some(Name {
-                            source: &self.source.as_ref()[value.0..value.1],
-                            insensitive: attr == CHARSET,
-                        });
-                    }
-                }
-                None
-            },
-            Params::None => None,
-        }
+            }
+            ParamSource::None => ParamsInner::None,
+        };
+
+        Params(inner)
     }
 
     #[inline]
     fn semicolon(&self) -> Option<usize> {
         match self.params {
-            Params::Utf8(i) |
-            Params::Custom(i, _) => Some(i),
-            Params::None => None,
+            ParamSource::Utf8(i) |
+            ParamSource::Custom(i, _) => Some(i),
+            ParamSource::None => None,
         }
     }
 
@@ -219,7 +213,7 @@ impl Mime {
 // Mime ============
 
 fn mime_eq_str(mime: &Mime, s: &str) -> bool {
-    if let Params::Utf8(semicolon) = mime.params {
+    if let ParamSource::Utf8(semicolon) = mime.params {
         if mime.source.as_ref().len() == s.len() {
             unicase::eq_ascii(mime.source.as_ref(), s)
         } else {
@@ -444,6 +438,64 @@ impl<'a> fmt::Display for Name<'a> {
     }
 }
 
+// Params ===================
+
+enum ParamsInner<'a> {
+    Utf8,
+    Custom {
+        source: &'a Source,
+        params: slice::Iter<'a, (Indexed, Indexed)>,
+    },
+    None,
+}
+
+/// An iterator over the parameters of a MIME.
+pub struct Params<'a>(ParamsInner<'a>);
+
+impl<'a> fmt::Debug for Params<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Params").finish()
+    }
+}
+
+impl<'a> Iterator for Params<'a> {
+    type Item = (Name<'a>, Name<'a>);
+
+    #[inline]
+    fn next(&mut self) -> Option<(Name<'a>, Name<'a>)> {
+        match self.0 {
+            ParamsInner::Utf8 => {
+                let value = (CHARSET, UTF_8);
+                self.0 = ParamsInner::None;
+                Some(value)
+            }
+            ParamsInner::Custom { source, ref mut params } => {
+                params.next().map(|&(name, value)| {
+                    let name = Name {
+                        source: &source.as_ref()[name.0..name.1],
+                        insensitive: true,
+                    };
+                    let value = Name {
+                        source: &source.as_ref()[value.0..value.1],
+                        insensitive: name == CHARSET,
+                    };
+                    (name, value)
+                })
+            }
+            ParamsInner::None => None
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self.0 {
+            ParamsInner::Utf8 => (1, Some(1)),
+            ParamsInner::Custom { ref params, .. } => params.size_hint(),
+            ParamsInner::None => (0, Some(0)),
+        }
+    }
+}
+
 macro_rules! names {
     ($($id:ident, $e:expr;)*) => (
         $(
@@ -549,11 +601,11 @@ macro_rules! mime_constant {
         mime_constant!($id, $src, $slash, None);
     );
     ($id:ident, $src:expr, $slash:expr, $plus:expr) => (
-        mime_constant!(FULL $id, $src, $slash, $plus, Params::None);
+        mime_constant!(FULL $id, $src, $slash, $plus, ParamSource::None);
     );
 
     ($id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
-        mime_constant!(FULL $id, $src, $slash, $plus, Params::Utf8($params));
+        mime_constant!(FULL $id, $src, $slash, $plus, ParamSource::Utf8($params));
     );
 
 
@@ -575,11 +627,11 @@ macro_rules! mime_constant_test {
         mime_constant_test!($id, $src, $slash, None);
     );
     ($id:ident, $src:expr, $slash:expr, $plus:expr) => (
-        mime_constant_test!(FULL $id, $src, $slash, $plus, Params::None);
+        mime_constant_test!(FULL $id, $src, $slash, $plus, ParamSource::None);
     );
 
     ($id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
-        mime_constant_test!(FULL $id, $src, $slash, $plus, Params::Utf8($params));
+        mime_constant_test!(FULL $id, $src, $slash, $plus, ParamSource::Utf8($params));
     );
 
     (FULL $id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => ({
@@ -592,10 +644,10 @@ macro_rules! mime_constant_test {
         } else {
             assert!(!__mime.as_ref().as_bytes().contains(&b'+'), "{:?} forgot plus", __mime);
         }
-        if let Params::Utf8(semicolon) = __mime.params {
+        if let ParamSource::Utf8(semicolon) = __mime.params {
             assert_eq!(__mime.as_ref().as_bytes()[semicolon], b';');
             assert_eq!(&__mime.as_ref()[semicolon..], "; charset=utf-8");
-        } else if let Params::None = __mime.params {
+        } else if let ParamSource::None = __mime.params {
             assert!(!__mime.as_ref().as_bytes().contains(&b';'));
         } else {
             unreachable!();
