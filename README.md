@@ -1,6 +1,6 @@
 # mime.rs
 
-[![Build Status](https://travis-ci.org/hyperium/mime.rs.svg?branch=master)](https://travis-ci.org/hyperium/mime.rs)
+[![Build Status](https://travis-ci.org/hyperium/mime.svg?branch=master)](https://travis-ci.org/hyperium/mime)
 
 Support MIME (Media Types) as strong types in Rust.
 
