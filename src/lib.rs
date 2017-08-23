@@ -32,6 +32,7 @@
 extern crate unicase;
 
 use std::cmp::Ordering;
+use std::error::Error;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
@@ -72,6 +73,18 @@ pub struct Name<'a> {
 #[derive(Debug)]
 pub struct FromStrError {
     inner: parse::ParseError,
+}
+
+impl Error for FromStrError {
+    fn description(&self) -> &str {
+        "an error occurred while parsing a MIME type"
+    }
+}
+
+impl fmt::Display for FromStrError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}: {}", self.description(), self.inner)
+    }
 }
 
 #[derive(Clone)]
