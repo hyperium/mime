@@ -1,4 +1,6 @@
 use std::ascii::AsciiExt;
+use std::error::Error;
+use std::fmt;
 use std::iter::Enumerate;
 use std::str::Bytes;
 
@@ -13,6 +15,29 @@ pub enum ParseError {
         pos: usize,
         byte: u8,
     },
+}
+
+impl Error for ParseError {
+    fn description(&self) -> &str {
+        use self::ParseError::*;
+
+        match *self {
+            MissingSlash => "a slash (/) was missing between the type and subtype",
+            MissingEqual => "an equals sign (=) was missing between a parameter and its value",
+            MissingQuote => "a quote (\") was missing from a parameter value",
+            InvalidToken { .. } => "an invalid token was encountered",
+        }
+    }
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let ParseError::InvalidToken { pos, byte } = *self {
+            write!(f, "{}, {:X} at position {}", self.description(), byte, pos)
+        } else {
+            f.write_str(self.description())
+        }
+    }
 }
 
 pub fn parse(s: &str) -> Result<Mime, ParseError> {
