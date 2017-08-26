@@ -437,6 +437,13 @@ impl<'a> AsRef<str> for Name<'a> {
     }
 }
 
+impl<'a> Into<&'a str> for Name<'a> {
+    #[inline]
+    fn into(self) -> &'a str {
+        self.source
+    }
+}
+
 impl<'a> fmt::Debug for Name<'a> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
