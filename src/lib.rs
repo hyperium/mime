@@ -416,6 +416,17 @@ fn name_eq_str(name: &Name, s: &str) -> bool {
     }
 }
 
+impl<'a> Name<'a> {
+    /// Get the value of this `Name` as a string.
+    ///
+    /// Note that the borrow is not tied to `&self` but the `'a` lifetime, allowing the
+    /// string to outlive `Name`. Alternately, there is an `impl<'a> From<Name<'a>> for &'a str`
+    /// which isn't rendered by Rustdoc, that can be accessed using `str::from(name)` or `name.into()`.
+    pub fn as_str(&self) -> &'a str {
+        self.source
+    }
+}
+
 impl<'a, 'b> PartialEq<&'b str> for Name<'a> {
     #[inline]
     fn eq(&self, other: & &'b str) -> bool {
@@ -434,6 +445,13 @@ impl<'a> AsRef<str> for Name<'a> {
     #[inline]
     fn as_ref(&self) -> &str {
         self.source
+    }
+}
+
+impl<'a> From<Name<'a>> for &'a str {
+    #[inline]
+    fn from(name: Name<'a>) -> &'a str {
+        name.source
     }
 }
 
