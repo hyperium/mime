@@ -451,7 +451,7 @@ impl<'a> AsRef<str> for Name<'a> {
 impl<'a> From<Name<'a>> for &'a str {
     #[inline]
     fn from(name: Name<'a>) -> &'a str {
-        self.source
+        name.source
     }
 }
 
