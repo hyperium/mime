@@ -7,17 +7,13 @@ matrix:
         - rust: stable
         - rust: beta
         - rust: nightly
+        - rust: 1.15.0
 
 sudo: false
 dist: trusty
+cache: cargo
 
-cache:
-  apt: true
-  directories:
-    - target/debug/deps
-    - target/debug/build
-
-notifications:
-  email: false
-
-
+script:
+    - cargo build
+    - cargo test
+    - rustdoc --test README.md -L target/debug/deps
