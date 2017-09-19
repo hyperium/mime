@@ -15,5 +15,6 @@ cache: cargo
 
 script:
     - cargo build
+    - cargo clean
     - cargo test
     - rustdoc --test README.md -L target/debug/deps
