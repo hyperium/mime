@@ -689,30 +689,30 @@ macro_rules! mime_constant_test {
 
 
 mimes! {
+    APPLICATION_JSON, "application/json", 11;
+    APPLICATION_MSGPACK, "application/msgpack", 11;
+    APPLICATION_OCTET_STREAM, "application/octet-stream", 11;
+    APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded", 11;
+    IMAGE_BMP, "image/bmp", 5;
+    IMAGE_GIF, "image/gif", 5;
+    IMAGE_JPEG, "image/jpeg", 5;
+    IMAGE_PNG, "image/png", 5;
+    IMAGE_STAR, "image/*", 5;
+    MULTIPART_FORM_DATA, "multipart/form-data", 9;
     STAR_STAR, "*/*", 1;
-
-    TEXT_STAR, "text/*", 4;
-    TEXT_PLAIN, "text/plain", 4;
-    TEXT_PLAIN_UTF_8, "text/plain; charset=utf-8", 4, None, 10;
+    TEXT_CSS, "text/css", 4;
+    TEXT_CSV, "text/csv", 4;
+    TEXT_CSV_UTF_8, "text/csv; charset=utf-8", 4, None, 8;
+    TEXT_EVENT_STREAM, "text/event-stream", 4;
     TEXT_HTML, "text/html", 4;
     TEXT_HTML_UTF_8, "text/html; charset=utf-8", 4, None, 9;
-    TEXT_CSS, "text/css", 4;
     TEXT_JAVASCRIPT, "text/javascript", 4;
+    TEXT_PLAIN, "text/plain", 4;
+    TEXT_PLAIN_UTF_8, "text/plain; charset=utf-8", 4, None, 10;
+    TEXT_STAR, "text/*", 4;
+    TEXT_TAB_SEPARATED_VALUES, "text/tab-separated-values", 4;
+    TEXT_TAB_SEPARATED_VALUES_UTF_8, "text/tab-separated-values; charset=utf-8", 4, None, 25;
     TEXT_XML, "text/xml", 4;
-    TEXT_EVENT_STREAM, "text/event-stream", 4;
-
-    IMAGE_STAR, "image/*", 5;
-    IMAGE_JPEG, "image/jpeg", 5;
-    IMAGE_GIF, "image/gif", 5;
-    IMAGE_PNG, "image/png", 5;
-    IMAGE_BMP, "image/bmp", 5;
-
-    APPLICATION_JSON, "application/json", 11;
-    APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded", 11;
-    APPLICATION_OCTET_STREAM, "application/octet-stream", 11;
-    APPLICATION_MSGPACK, "application/msgpack", 11;
-
-    MULTIPART_FORM_DATA, "multipart/form-data", 9;
 }
 
 #[deprecated(since="0.3.1", note="please use `TEXT_JAVASCRIPT` instead")]
@@ -729,8 +729,7 @@ mod tests {
     fn test_type_() {
         assert_eq!(TEXT_PLAIN.type_(), TEXT);
     }
-
-
+    
     #[test]
     fn test_subtype() {
         assert_eq!(TEXT_PLAIN.subtype(), PLAIN);
@@ -766,7 +765,10 @@ mod tests {
     fn test_mime_from_str() {
         assert_eq!(Mime::from_str("text/plain").unwrap(), TEXT_PLAIN);
         assert_eq!(Mime::from_str("TEXT/PLAIN").unwrap(), TEXT_PLAIN);
+        assert_eq!(Mime::from_str("TEXT/Tab-separated-values").unwrap(), TEXT_TAB_SEPARATED_VALUES);
+        assert_eq!(Mime::from_str("text/tab-separated-values; charset=utf-8").unwrap(), TEXT_TAB_SEPARATED_VALUES_UTF_8);
         assert_eq!(Mime::from_str("text/plain; charset=utf-8").unwrap(), TEXT_PLAIN_UTF_8);
+        assert_eq!(Mime::from_str("text/csv; charset=utf-8").unwrap(), TEXT_CSV_UTF_8);
         assert_eq!(Mime::from_str("text/plain;charset=\"utf-8\"").unwrap(), TEXT_PLAIN_UTF_8);
 
         let upper = Mime::from_str("TEXT/PLAIN").unwrap();
