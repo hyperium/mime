@@ -1,8 +1,8 @@
 [package]
 
 name = "mime"
-version = "0.3.4" # remember to update html_root_url
-authors = ["Sean McArthur <sean.monstar@gmail.com>"]
+version = "0.3.5" # remember to update html_root_url
+authors = ["Sean McArthur <sean@seanmonstar.com>"]
 license = "MIT/Apache-2.0"
 description = "Strongly Typed Mimes"
 documentation = "https://docs.rs/mime"
