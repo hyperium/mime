@@ -641,7 +641,9 @@ macro_rules! mime_constant {
 
 
     (FULL $id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
+        #[doc = "`"]
         #[doc = $src]
+        #[doc = "`"]
         pub const $id: Mime = Mime {
             source: Source::Atom(__Atoms::$id as u8, $src),
             slash: $slash,
