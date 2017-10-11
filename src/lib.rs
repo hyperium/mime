@@ -773,6 +773,10 @@ mod tests {
         assert_eq!(Mime::from_str("text/plain; charset=utf-8").unwrap(), TEXT_PLAIN_UTF_8);
         assert_eq!(Mime::from_str("text/plain;charset=\"utf-8\"").unwrap(), TEXT_PLAIN_UTF_8);
 
+        // quotes + semi colon
+        Mime::from_str("text/plain;charset=\"utf-8\"; foo=bar").unwrap();
+        Mime::from_str("text/plain;charset=\"utf-8\" ; foo=bar").unwrap();
+
         let upper = Mime::from_str("TEXT/PLAIN").unwrap();
         assert_eq!(upper, TEXT_PLAIN);
         assert_eq!(upper.type_(), TEXT);

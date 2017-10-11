@@ -144,7 +144,6 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 match iter.next() {
                     Some((i, b'"')) if i > start => {
                         value = Indexed(start, i);
-                        start = i + 1;
                         break 'value;
                     },
                     Some((_, c)) if is_restricted_quoted_char(c) => (),
@@ -154,7 +153,6 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                         byte: byte,
                     }),
                 }
-
             } else {
                 match iter.next() {
                     Some((i, b'"')) if i == start => {
@@ -173,6 +171,30 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                         break 'value;
                     },
 
+                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                        pos: pos,
+                        byte: byte,
+                    }),
+                }
+            }
+        }
+
+        if is_quoted {
+            'ws: loop {
+                match iter.next() {
+                    Some((i, b';')) => {
+                        // next param
+                        start = i + 1;
+                        break 'ws;
+                    },
+                    Some((_, b' ')) => {
+                        // skip whitespace
+                    },
+                    None => {
+                        // eof
+                        start = s.len();
+                        break 'ws;
+                    },
                     Some((pos, byte)) => return Err(ParseError::InvalidToken {
                         pos: pos,
                         byte: byte,
