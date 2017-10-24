@@ -142,7 +142,7 @@ impl Mime {
     #[inline]
     pub fn subtype(&self) -> Name {
         let end = self.plus.unwrap_or_else(|| {
-            return self.semicolon().unwrap_or(self.source.as_ref().len())
+            self.semicolon().unwrap_or_else(|| self.source.as_ref().len())
         });
         Name {
             source: &self.source.as_ref()[self.slash + 1..end],
@@ -164,7 +164,7 @@ impl Mime {
     /// ```
     #[inline]
     pub fn suffix(&self) -> Option<Name> {
-        let end = self.semicolon().unwrap_or(self.source.as_ref().len());
+        let end = self.semicolon().unwrap_or_else(|| self.source.as_ref().len());
         self.plus.map(|idx| Name {
             source: &self.source.as_ref()[idx + 1..end],
             insensitive: true,
@@ -191,7 +191,7 @@ impl Mime {
 
     /// Returns an iterator over the parameters.
     #[inline]
-    pub fn params<'a>(&'a self) -> Params<'a> {
+    pub fn params(&self) -> Params {
         let inner = match self.params {
             ParamSource::Utf8(_) => ParamsInner::Utf8,
             ParamSource::Custom(_, ref params) => {
@@ -240,12 +240,10 @@ fn mime_eq_str(mime: &Mime, s: &str) -> bool {
 }
 
 fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
-    if b.len() < semicolon + 1 {
-        false
-    } else if !unicase::eq_ascii(&a[..semicolon], &b[..semicolon]) {
+    if b.len() < semicolon + 1 || !unicase::eq_ascii(&a[..semicolon], &b[..semicolon]) {
         false
     } else {
-        // gotta check for quotes, LWS, and for case senstive names
+        // gotta check for quotes, LWS, and for case sensitive names
         let mut a = &a[semicolon + 1..];
         let mut b = &b[semicolon + 1..];
         let mut sensitive;
@@ -299,28 +297,25 @@ fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
                     return false;
                 }
             } else {
-                a.find(';').unwrap_or(a.len())
+                a.find(';').unwrap_or_else(|| a.len())
             };
 
             let b_end = if b_quoted {
+                // quote
                 if let Some(quote) = b.find('"') {
                     quote
                 } else {
                     return false;
                 }
             } else {
-                b.find(';').unwrap_or(b.len())
+                b.find(';').unwrap_or_else(|| b.len())
             };
 
-            if sensitive {
-                if !unicase::eq_ascii(&a[..a_end], &b[..b_end]) {
-                    return false;
-                }
-            } else {
-                if &a[..a_end] != &b[..b_end] {
-                    return false;
-                }
+            if sensitive && !unicase::eq_ascii(&a[..a_end], &b[..b_end]) ||
+                a[..a_end] != b[..b_end] {
+                return false;
             }
+
             a = &a[a_end..];
             b = &b[b_end..];
         }
