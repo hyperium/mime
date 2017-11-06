@@ -138,20 +138,35 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
         let value;
         // values must be restrict-name-char or "anything goes"
         let mut is_quoted = false;
+        let mut is_quoted_pair = false;
 
         'value: loop {
             if is_quoted {
-                match iter.next() {
-                    Some((i, b'"')) if i > start => {
-                        value = Indexed(start, i+1);
-                        break 'value;
-                    },
-                    Some((_, c)) if is_restricted_quoted_char(c) => (),
-                    None => return Err(ParseError::MissingQuote),
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
-                        byte: byte,
-                    }),
+                if is_quoted_pair {
+                    is_quoted_pair = false;
+                    match iter.next() {
+                        Some((_, ch)) if is_restricted_quoted_char(ch) => (),
+                        Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                            pos: pos,
+                            byte: byte,
+                        }),
+                        None => return Err(ParseError::MissingQuote),
+                    }
+
+                } else {
+                    match iter.next() {
+                        Some((i, b'"')) if i > start => {
+                            value = Indexed(start, i+1);
+                            break 'value;
+                        },
+                        Some((_, b'\\')) => is_quoted_pair = true,
+                        Some((_, c)) if is_restricted_quoted_char(c) => (),
+                        None => return Err(ParseError::MissingQuote),
+                        Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                            pos: pos,
+                            byte: byte,
+                        }),
+                    }
                 }
             } else {
                 match iter.next() {
@@ -313,7 +328,7 @@ fn is_token(c: u8) -> bool {
 }
 
 fn is_restricted_quoted_char(c: u8) -> bool {
-    c > 31 && c != 127
+    c == 9 || (c > 31 && c != 127)
 }
 
 #[test]
