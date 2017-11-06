@@ -4,7 +4,7 @@ use std::fmt;
 use std::iter::Enumerate;
 use std::str::Bytes;
 
-use super::{Mime, Source, ParamSource, Indexed, CHARSET, UTF_8};
+use super::{Mime, ParamSource, Source, Indexed, CHARSET, UTF_8};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -143,7 +143,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
             if is_quoted {
                 match iter.next() {
                     Some((i, b'"')) if i > start => {
-                        value = Indexed(start, i);
+                        value = Indexed(start, i+1);
                         break 'value;
                     },
                     Some((_, c)) if is_restricted_quoted_char(c) => (),
@@ -157,7 +157,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 match iter.next() {
                     Some((i, b'"')) if i == start => {
                         is_quoted = true;
-                        start = i + 1;
+                        start = i //+ 1;
                     },
                     Some((_, c)) if is_token(c) => (),
                     Some((i, b';')) if i > start => {
@@ -238,7 +238,7 @@ fn lower_ascii_with_params(s: &str, semi: usize, params: &[(Indexed, Indexed)]) 
         // Since we just converted this part of the string to lowercase,
         // we can skip the `Name == &str` unicase check and do a faster
         // memcmp instead.
-        if &owned[name.0..name.1] == CHARSET.source {
+        if &owned[name.0..name.1] == CHARSET.as_str() {
             owned[value.0..value.1].make_ascii_lowercase();
         }
     }

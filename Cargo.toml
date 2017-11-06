@@ -11,3 +11,4 @@ keywords = ["mime", "media-extensions", "media-types"]
 
 [dependencies]
 unicase = "2.0"
+quoted-string = "0.2.2"
