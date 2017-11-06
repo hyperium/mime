@@ -159,6 +159,7 @@ impl<'a> fmt::Display for Value<'a> {
 
 #[cfg(test)]
 mod test {
+    use std::borrow::Cow;
     use std::cmp::PartialEq;
     use std::fmt::Debug;
 
@@ -316,6 +317,33 @@ mod test {
 
         //both are ascii case insensitive
         bidi_ne(value_quoted, value_quoted_with_esacpes);
+    }
+
+    #[test]
+    fn test_as_str_repr() {
+        let value = Value { source: "\"ab cd\"", ascii_case_insensitive: false };
+        assert_eq!(value, "ab cd");
+        assert_eq!(value.as_str_repr(), "\"ab cd\"");
+    }
+
+    #[test]
+    fn test_to_content_not_quoted() {
+        let value = Value { source: "abc", ascii_case_insensitive: false};
+        assert_eq!(value.to_content(), Cow::Borrowed("abc"));
+    }
+
+    #[test]
+    fn test_to_content_quoted_simple() {
+        let value = Value { source: "\"ab cd\"", ascii_case_insensitive: false};
+        assert_eq!(value.to_content(), Cow::Borrowed("ab cd"));
+    }
+
+    #[test]
+    fn test_to_content_with_quoted_pair() {
+        let value = Value { source: "\"ab\\\"cd\"", ascii_case_insensitive: false};
+        assert_eq!(value, "ab\"cd");
+        let expected: Cow<'static, str> = Cow::Owned("ab\"cd".into());
+        assert_eq!(value.to_content(), expected);
     }
 
 }
