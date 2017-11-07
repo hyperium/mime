@@ -20,8 +20,9 @@ pub struct Name<'a> {
     //
     // Being an enum with an Atom variant that is a usize (and without a
     // string pointer and boolean) would allow for faster comparisons.
-    /// the underlying str slice, which is _required to be lowercase_
-    /// comparisons between two Name instances expect this.
+    /// the underlying str slice, which is _required to be lowercase_.
+    /// Comparisons between two Name instances expect this, as they
+    /// have to use `derive(PartialEq)` to be usable in a pattern
     pub(crate) source: &'a str,
 }
 
