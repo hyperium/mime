@@ -58,10 +58,7 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
                 break;
             },
             None => return Err(ParseError::MissingSlash), // EOF and no toplevel is no Mime
-            Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                pos: pos,
-                byte: byte,
-            })
+            Some((pos, byte)) => return Err(ParseError::InvalidToken { pos, byte })
         };
 
     }
@@ -81,20 +78,17 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
             None => {
                 return Ok(Mime {
                     source: Source::Dynamic(s.to_ascii_lowercase()),
-                    slash: slash,
-                    plus: plus,
+                    slash,
+                    plus,
                     params: ParamSource::None,
                 });
             },
-            Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                pos: pos,
-                byte: byte,
-            })
+            Some((pos, byte)) => return Err(ParseError::InvalidToken { pos, byte })
         };
     }
 
     // params
-    let params = try!(params_from_str(s, &mut iter, start));
+    let params = params_from_str(s, &mut iter, start)?;
 
     let src = match params {
         ParamSource::Utf8(_) |
@@ -104,9 +98,9 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
 
     Ok(Mime {
         source: Source::Dynamic(src),
-        slash: slash,
-        plus: plus,
-        params: params,
+        slash,
+        plus,
+        params,
     })
 }
 
@@ -128,10 +122,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                     break 'name;
                 },
                 None => return Err(ParseError::MissingEqual),
-                Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                    pos: pos,
-                    byte: byte,
-                }),
+                Some((pos, byte)) => return Err(ParseError::InvalidToken { pos, byte }),
             }
         }
 
@@ -148,10 +139,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                     },
                     Some((_, c)) if is_restricted_quoted_char(c) => (),
                     None => return Err(ParseError::MissingQuote),
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
-                        byte: byte,
-                    }),
+                    Some((pos, byte)) => return Err(ParseError::InvalidToken { pos, byte }),
                 }
             } else {
                 match iter.next() {
@@ -171,10 +159,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                         break 'value;
                     },
 
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
-                        byte: byte,
-                    }),
+                    Some((pos, byte)) => return Err(ParseError::InvalidToken { pos, byte }),
                 }
             }
         }
@@ -195,10 +180,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                         start = s.len();
                         break 'ws;
                     },
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
-                        byte: byte,
-                    }),
+                    Some((pos, byte)) => return Err(ParseError::InvalidToken { pos, byte }),
                 }
             }
         }
@@ -217,7 +199,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 vec.push((name, value));
             },
             ParamSource::None => {
-                if semicolon + 2 == name.0 && CHARSET == &s[name.0..name.1] && 
+                if semicolon + 2 == name.0 && CHARSET == &s[name.0..name.1] &&
                     UTF_8 == &s[value.0..value.1] {
                     params = ParamSource::Utf8(semicolon);
                     continue 'params;
