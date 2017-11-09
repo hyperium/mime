@@ -13,19 +13,21 @@ Support MIME (Media Types) as strong types in Rust.
 ```rust
 extern crate mime;
 
-// common types are constants
-let text = mime::TEXT_PLAIN;
+fn main() {
+    // common types are constants
+    let text = mime::TEXT_PLAIN;
 
-// deconstruct Mimes to match on them
-match (text.type_(), text.subtype()) {
-    (mime::TEXT, mime::PLAIN) => {
-        // plain text!
-    },
-    (mime::TEXT, _) => {
-        // structured text!
-    },
-    _ => {
-        // not text!
+    // deconstruct Mimes to match on them
+    match (text.type_(), text.subtype()) {
+        (mime::TEXT, mime::PLAIN) => {
+            // plain text!
+        },
+        (mime::TEXT, _) => {
+            // structured text!
+        },
+        _ => {
+            // not text!
+        }
     }
 }
 ```
