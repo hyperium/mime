@@ -829,6 +829,23 @@ mod tests {
     }
 
     #[test]
+    fn test_params() {
+        let mime = TEXT_PLAIN;
+        let mut params = mime.params();
+        assert_eq!(params.next(), None);
+
+        let mime = Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap();
+        let mut params = mime.params();
+        assert_eq!(params.next(), Some((CHARSET, UTF_8)));
+
+        let (second_param_left, second_param_right) = params.next().unwrap();
+        assert_eq!(second_param_left, "foo");
+        assert_eq!(second_param_right, "bar");
+
+        assert_eq!(params.next(), None);
+    }
+
+    #[test]
     fn test_name_eq() {
         assert_eq!(TEXT, TEXT);
         assert_eq!(TEXT, "text");
