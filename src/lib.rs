@@ -32,6 +32,7 @@
 extern crate unicase;
 extern crate quoted_string;
 
+use std::collections::HashMap;
 use std::cmp::Ordering;
 use std::error::Error;
 use std::fmt;
@@ -189,6 +190,12 @@ impl Mime {
         Params(inner)
     }
 
+    /// returns true if the media type has at last one parameter
+    #[inline]
+    pub fn has_params(&self) -> bool {
+        self.semicolon().is_some()
+    }
+
     #[inline]
     fn semicolon(&self) -> Option<usize> {
         match self.params {
@@ -204,106 +211,27 @@ impl Mime {
             _ => 0,
         }
     }
+
+    fn eq_of_params(&self, other: &Mime) -> bool {
+        use self::FastEqRes::*;
+        // if ParamInner is None or Utf8 we can determine equality faster
+        match self.params().fast_eq(&other.params()) {
+            Equals => return true,
+            NotEquals => return false,
+            Undetermined => {},
+        }
+
+        // OPTIMIZE: some on-stack structure might be better suited as most
+        // media types do not have many parameters
+        let my_params = self.params().collect::<HashMap<_,_>>();
+        let other_params = self.params().collect::<HashMap<_,_>>();
+        my_params == other_params
+    }
 }
 
 // Mime ============
 
-fn mime_eq_str(mime: &Mime, s: &str) -> bool {
-    if let ParamSource::Utf8(semicolon) = mime.params {
-        if mime.source.as_ref().len() == s.len() {
-            unicase::eq_ascii(mime.source.as_ref(), s)
-        } else {
-            params_eq(semicolon, mime.source.as_ref(), s)
-        }
-    } else if let Some(semicolon) = mime.semicolon() {
-        params_eq(semicolon, mime.source.as_ref(), s)
-    } else {
-        unicase::eq_ascii(mime.source.as_ref(), s)
-    }
-}
 
-fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
-    if b.len() < semicolon + 1 || !unicase::eq_ascii(&a[..semicolon], &b[..semicolon]) {
-        false
-    } else {
-        // gotta check for quotes, LWS, and for case sensitive names
-        let mut a = &a[semicolon + 1..];
-        let mut b = &b[semicolon + 1..];
-        let mut sensitive;
-
-        loop {
-            a = a.trim();
-            b = b.trim();
-
-            match (a.is_empty(), b.is_empty()) {
-                (true, true) => return true,
-                (true, false) |
-                (false, true) => return false,
-                (false, false) => (),
-            }
-
-            //name
-            if let Some(a_idx) = a.find('=') {
-                let a_name = a[..a_idx].trim_left();
-                if let Some(b_idx) = b.find('=') {
-                    let b_name = b[..b_idx].trim_left();
-                    if !unicase::eq_ascii(a_name, b_name) {
-                        return false;
-                    }
-                    sensitive = a_name != CHARSET;
-                    a = &a[..a_idx];
-                    b = &b[..b_idx];
-                } else {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-            //value
-            let a_quoted = if a.as_bytes()[0] == b'"' {
-                a = &a[1..];
-                true
-            } else {
-                false
-            };
-            let b_quoted = if b.as_bytes()[0] == b'"' {
-                b = &b[1..];
-                true
-            } else {
-                false
-            };
-
-            let a_end = if a_quoted {
-                if let Some(quote) = a.find('"') {
-                    quote
-                } else {
-                    return false;
-                }
-            } else {
-                a.find(';').unwrap_or_else(|| a.len())
-            };
-
-            let b_end = if b_quoted {
-                // quote
-                if let Some(quote) = b.find('"') {
-                    quote
-                } else {
-                    return false;
-                }
-            } else {
-                b.find(';').unwrap_or_else(|| b.len())
-            };
-
-            if sensitive && !unicase::eq_ascii(&a[..a_end], &b[..b_end]) ||
-                a[..a_end] != b[..b_end] {
-                return false;
-            }
-
-            a = &a[a_end..];
-            b = &b[b_end..];
-        }
-    }
-}
 
 impl PartialEq for Mime {
     #[inline]
@@ -315,7 +243,12 @@ impl PartialEq for Mime {
             // any parameters that are case sensistive, this can skip the
             // unicase::eq_ascii, and just use a memcmp instead.
             (0, _) |
-            (_, 0) => mime_eq_str(self, other.source.as_ref()),
+            (_, 0) => {
+                self.type_() == other.type_()  &&
+                    self.subtype() == other.subtype() &&
+                    self.suffix() == other.suffix() &&
+                    self.eq_of_params(other)
+            },
             (a, b) => a == b,
         }
     }
@@ -341,17 +274,54 @@ impl Hash for Mime {
     }
 }
 
+impl PartialEq<str> for Mime {
+    fn eq(&self, s: &str) -> bool {
+        if let ParamSource::Utf8(..) = self.params {
+            // this only works because ParamSource::Utf8 is only used if
+            // its "<type>/<subtype>; charset=utf-8" them moment spaces are
+            // set differently or charset is quoted or is utf8 it will not
+            // use ParamSource::Utf8
+            if self.source.as_ref().len() == s.len() {
+                unicase::eq_ascii(self.source.as_ref(), s)
+            } else {
+                //OPTIMIZE: once the parser is rewritten and more modular
+                // we can use parts of the parser to parse the string without
+                // actually crating a mime, and use that for comparision
+                s.parse::<Mime>()
+                    .map(|other_mime| {
+                        self == &other_mime
+                    })
+                    .unwrap_or(false)
+            }
+        } else if self.has_params() {
+            s.parse::<Mime>()
+                .map(|other_mime| {
+                    self == &other_mime
+                })
+                .unwrap_or(false)
+        } else {
+            unicase::eq_ascii(self.source.as_ref(), s)
+        }
+    }
+}
+
 impl<'a> PartialEq<&'a str> for Mime {
     #[inline]
     fn eq(&self, s: & &'a str) -> bool {
-        mime_eq_str(self, *s)
+        self == *s
     }
 }
 
 impl<'a> PartialEq<Mime> for &'a str {
     #[inline]
     fn eq(&self, mime: &Mime) -> bool {
-        mime_eq_str(mime, *self)
+        mime == self
+    }
+}
+impl PartialEq<Mime> for str {
+    #[inline]
+    fn eq(&self, mime: &Mime) -> bool {
+        mime == self
     }
 }
 
@@ -395,12 +365,38 @@ enum ParamsInner<'a> {
     None,
 }
 
+enum FastEqRes {
+    Equals,
+    NotEquals,
+    Undetermined
+}
+
 /// An iterator over the parameters of a MIME.
 pub struct Params<'a>(ParamsInner<'a>);
 
 impl<'a> fmt::Debug for Params<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Params").finish()
+    }
+}
+
+impl<'a> Params<'a> {
+
+    fn fast_eq<'b>(&self, other: &Params<'b>) -> FastEqRes {
+        let self_none = if let ParamsInner::None = self.0 { true } else { false };
+        let other_none = if let ParamsInner::None = other.0 { true } else { false };
+        if self_none && other_none {
+            return FastEqRes::Equals;
+        } else if self_none || other_none {
+            return FastEqRes::NotEquals;
+        }
+
+        let self_utf8 = if let ParamsInner::Utf8 = self.0 { true } else { false };
+        let other_utf8 = if let ParamsInner::Utf8 = other.0 { true } else { false };
+        if self_utf8 && other_utf8 {
+            return FastEqRes::Equals;
+        }
+        FastEqRes::Undetermined
     }
 }
 

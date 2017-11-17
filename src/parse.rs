@@ -233,7 +233,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 vec.push((name, value));
             },
             ParamSource::None => {
-                if semicolon + 2 == name.0 && CHARSET == &s[name.0..name.1] && 
+                if semicolon + 2 == name.0 && CHARSET == &s[name.0..name.1] &&
                     UTF_8 == &s[value.0..value.1] {
                     params = ParamSource::Utf8(semicolon);
                     continue 'params;
