@@ -834,5 +834,19 @@ mod tests {
         let mime = Mime::from_str(r#"application/x-custom;param="\""#);
         assert!(mime.is_err());
     }
+
+    #[test]
+    fn test_parameter_eq_is_order_independent() {
+        let mime_a = Mime::from_str(r#"application/x-custom; param1=a; param2=b"#).unwrap();
+        let mime_b = Mime::from_str(r#"application/x-custom; param2=b; param1=a"#).unwrap();
+        assert_eq!(mime_a, mime_b);
+    }
+
+    #[test]
+    fn test_parameter_eq_is_order_independent_with_str() {
+        let mime_a = Mime::from_str(r#"application/x-custom; param1=a; param2=b"#).unwrap();
+        let mime_b = r#"application/x-custom; param2=b; param1=a"#;
+        assert_eq!(mime_a, mime_b);
+    }
 }
 
