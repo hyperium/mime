@@ -848,5 +848,12 @@ mod tests {
         let mime_b = r#"application/x-custom; param2=b; param1=a"#;
         assert_eq!(mime_a, mime_b);
     }
+
+    #[test]
+    fn test_name_eq_is_case_insensitive() {
+        let mime1 = Mime::from_str(r#"text/x-custom; abc=a"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/x-custom; aBc=a"#).unwrap();
+        assert_eq!(mime1, mime2);
+    }
 }
 

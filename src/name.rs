@@ -42,7 +42,6 @@ impl<'a> Name<'a> {
 impl<'a> PartialEq<str> for Name<'a> {
     #[inline]
     fn eq(&self, other: &str) -> bool {
-        //OPTIMIZE: we might parse names into lowercase
         unicase::eq_ascii(self.source, other)
     }
 }
@@ -99,7 +98,9 @@ impl<'a> fmt::Display for Name<'a> {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
     use super::Name;
+    use super::super::Mime;
 
     #[test]
     fn test_name_eq_str() {
@@ -114,15 +115,11 @@ mod test {
 
     #[test]
     fn test_name_eq_name() {
-        let param = Name { source: "ABC" };
-        let param2 = Name { source: "aBc" };
+        let mime1 = Mime::from_str(r#"text/x-custom; abc=a"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/x-custom; aBc=a"#).unwrap();
+        let param1 = mime1.params().next().unwrap().0;
+        let param2 = mime2.params().next().unwrap().0;
 
-        // This strange behaviour is a side effect from having to use `derive(PartialEq)`
-        // for this type to allow using it in match statements, it is nevertheless acceptable
-        // as we do not provide a way to create `Name` outside of this crate and all
-        // cases where we create one inside are checked to only use lowercase string
-        // as values for source
-        assert_ne!(param, param2);
-        assert_eq!(param, param2.as_str());
+        assert_eq!(param1, param2);
     }
 }
