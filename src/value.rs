@@ -63,11 +63,11 @@ impl<'a> Value<'a> {
     /// ```
     /// use std::borrow::Cow;
     ///
-    /// let raw_mime = r#"text/plain; p1="char is \a"; p2="simple"; p3=simple2"#;
+    /// let raw_mime = r#"text/plain; p1="char is \""; p2="simple"; p3=simple2"#;
     /// let mime = raw_mime.parse::<mime::Mime>().unwrap();
     ///
     /// let param1 = mime.get_param("p1").unwrap();
-    /// let expected: Cow<'static, str> = Cow::Owned(r#"char is a"#.into());
+    /// let expected: Cow<'static, str> = Cow::Owned(r#"char is ""#.into());
     /// assert_eq!(param1.to_content(), expected);
     ///
     /// let param2 = mime.get_param("p2").unwrap();
@@ -79,24 +79,6 @@ impl<'a> Value<'a> {
     ///
     pub fn to_content(&self) -> Cow<'a, str> {
         quoted_string::unquote_unchecked(self.source)
-    }
-
-    fn eq_str(&self, s: &str) -> bool {
-        if self.source.chars().next() == Some('"') {
-            let content_chars = ContentChars::from_string_unchecked(self.source);
-            if self.ascii_case_insensitive {
-                content_chars.eq_ignore_ascii_case(s)
-            } else {
-                content_chars == s
-            }
-        } else {
-            if self.ascii_case_insensitive {
-                unicase::eq_ascii(self.source, s)
-            } else {
-                self.source == s
-            }
-        }
-
     }
 
 }
@@ -115,24 +97,44 @@ impl<'a, 'b> PartialEq<Value<'b>> for Value<'a> {
     }
 }
 
-impl<'a, 'b> PartialEq<Value<'b>> for &'a str {
-    #[inline]
-    fn eq(&self, other: &Value<'b>) -> bool {
-        other.eq_str(*self)
-    }
-}
-
-impl<'a> PartialEq<Value<'a>> for str {
-    #[inline]
-    fn eq(&self, other: &Value<'a>) -> bool {
-        other.eq_str(self)
+impl<'a> PartialEq<str> for Value<'a> {
+    fn eq(&self, other: &str) -> bool {
+        if self.source.chars().next() == Some('"') {
+            let content_chars = ContentChars::from_string_unchecked(self.source);
+            if self.ascii_case_insensitive {
+                content_chars.eq_ignore_ascii_case(other)
+            } else {
+                content_chars == other
+            }
+        } else {
+            if self.ascii_case_insensitive {
+                unicase::eq_ascii(self.source, other)
+            } else {
+                self.source == other
+            }
+        }
     }
 }
 
 impl<'a, 'b> PartialEq<&'b str> for Value<'a> {
     #[inline]
     fn eq(&self, other: & &'b str) -> bool {
-        self.eq_str(*other)
+        self == *other
+    }
+}
+
+
+impl<'a, 'b> PartialEq<Value<'b>> for &'a str {
+    #[inline]
+    fn eq(&self, other: &Value<'b>) -> bool {
+        other == self
+    }
+}
+
+impl<'a> PartialEq<Value<'a>> for str {
+    #[inline]
+    fn eq(&self, other: &Value<'a>) -> bool {
+        other == self
     }
 }
 

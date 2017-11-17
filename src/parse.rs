@@ -173,7 +173,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 match iter.next() {
                     Some((i, b'"')) if i == start => {
                         is_quoted = true;
-                        start = i //+ 1;
+                        start = i;
                     },
                     Some((_, c)) if is_token(c) => (),
                     Some((i, b';')) if i > start => {

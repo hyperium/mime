@@ -37,26 +37,34 @@ impl<'a> Name<'a> {
         self.source
     }
 
-    #[inline]
-    fn eq_str(&self, s: &str) -> bool {
-        //OPTIMIZE: we might parse names into lowercase
-        unicase::eq_ascii(self.source, s)
-    }
-
 }
 
+impl<'a> PartialEq<str> for Name<'a> {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        //OPTIMIZE: we might parse names into lowercase
+        unicase::eq_ascii(self.source, other)
+    }
+}
 
 impl<'a, 'b> PartialEq<&'b str> for Name<'a> {
     #[inline]
     fn eq(&self, other: & &'b str) -> bool {
-        self.eq_str(*other)
+        self == *other
+    }
+}
+
+impl<'a> PartialEq<Name<'a>> for str {
+    #[inline]
+    fn eq(&self, other: &Name<'a>) -> bool {
+        other == self
     }
 }
 
 impl<'a, 'b> PartialEq<Name<'a>> for &'b str {
     #[inline]
     fn eq(&self, other: &Name<'a>) -> bool {
-        other.eq_str(*self)
+        other == self
     }
 }
 

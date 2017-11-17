@@ -32,8 +32,8 @@
 extern crate unicase;
 extern crate quoted_string;
 
-use std::collections::HashMap;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -43,8 +43,8 @@ use std::slice;
 pub use self::name::Name;
 pub use self::value::Value;
 
-mod parse;
 mod name;
+mod parse;
 mod value;
 
 /// A parsed mime or media type.
@@ -448,7 +448,7 @@ macro_rules! names {
 
         #[test]
         fn test_names_macro_consts() {
-            #[allow(warnings)]
+            #[allow(unused_imports)]
             use std::ascii::AsciiExt;
             $(
             assert_eq!($id.source.to_ascii_lowercase(), $id.source);
