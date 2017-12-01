@@ -1,10 +1,11 @@
+#[allow(unused_imports)]
 use std::ascii::AsciiExt;
 use std::error::Error;
 use std::fmt;
 use std::iter::Enumerate;
 use std::str::Bytes;
 
-use super::{Mime, Source, ParamSource, Indexed, CHARSET, UTF_8};
+use super::{Mime, ParamSource, Source, Indexed, CHARSET, UTF_8};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -138,26 +139,41 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
         let value;
         // values must be restrict-name-char or "anything goes"
         let mut is_quoted = false;
+        let mut is_quoted_pair = false;
 
         'value: loop {
             if is_quoted {
-                match iter.next() {
-                    Some((i, b'"')) if i > start => {
-                        value = Indexed(start, i);
-                        break 'value;
-                    },
-                    Some((_, c)) if is_restricted_quoted_char(c) => (),
-                    None => return Err(ParseError::MissingQuote),
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
-                        byte: byte,
-                    }),
+                if is_quoted_pair {
+                    is_quoted_pair = false;
+                    match iter.next() {
+                        Some((_, ch)) if is_restricted_quoted_char(ch) => (),
+                        Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                            pos: pos,
+                            byte: byte,
+                        }),
+                        None => return Err(ParseError::MissingQuote),
+                    }
+
+                } else {
+                    match iter.next() {
+                        Some((i, b'"')) if i > start => {
+                            value = Indexed(start, i+1);
+                            break 'value;
+                        },
+                        Some((_, b'\\')) => is_quoted_pair = true,
+                        Some((_, c)) if is_restricted_quoted_char(c) => (),
+                        None => return Err(ParseError::MissingQuote),
+                        Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                            pos: pos,
+                            byte: byte,
+                        }),
+                    }
                 }
             } else {
                 match iter.next() {
                     Some((i, b'"')) if i == start => {
                         is_quoted = true;
-                        start = i + 1;
+                        start = i;
                     },
                     Some((_, c)) if is_token(c) => (),
                     Some((i, b';')) if i > start => {
@@ -217,7 +233,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 vec.push((name, value));
             },
             ParamSource::None => {
-                if semicolon + 2 == name.0 && CHARSET == &s[name.0..name.1] && 
+                if semicolon + 2 == name.0 && CHARSET == &s[name.0..name.1] &&
                     UTF_8 == &s[value.0..value.1] {
                     params = ParamSource::Utf8(semicolon);
                     continue 'params;
@@ -238,7 +254,7 @@ fn lower_ascii_with_params(s: &str, semi: usize, params: &[(Indexed, Indexed)]) 
         // Since we just converted this part of the string to lowercase,
         // we can skip the `Name == &str` unicase check and do a faster
         // memcmp instead.
-        if &owned[name.0..name.1] == CHARSET.source {
+        if &owned[name.0..name.1] == CHARSET.as_str() {
             owned[value.0..value.1].make_ascii_lowercase();
         }
     }
@@ -313,7 +329,7 @@ fn is_token(c: u8) -> bool {
 }
 
 fn is_restricted_quoted_char(c: u8) -> bool {
-    c > 31 && c != 127
+    c == 9 || (c > 31 && c != 127)
 }
 
 #[test]
