@@ -99,19 +99,17 @@ impl<'a, 'b> PartialEq<Value<'b>> for Value<'a> {
 
 impl<'a> PartialEq<str> for Value<'a> {
     fn eq(&self, other: &str) -> bool {
-        if self.source.chars().next() == Some('"') {
+        if self.source.starts_with('"') {
             let content_chars = ContentChars::from_string_unchecked(self.source);
             if self.ascii_case_insensitive {
                 content_chars.eq_ignore_ascii_case(other)
             } else {
                 content_chars == other
             }
+        } else if self.ascii_case_insensitive {
+            unicase::eq_ascii(self.source, other)
         } else {
-            if self.ascii_case_insensitive {
-                unicase::eq_ascii(self.source, other)
-            } else {
-                self.source == other
-            }
+            self.source == other
         }
     }
 }
@@ -330,19 +328,19 @@ mod test {
 
     #[test]
     fn test_to_content_not_quoted() {
-        let value = Value { source: "abc", ascii_case_insensitive: false};
+        let value = Value { source: "abc", ascii_case_insensitive: false };
         assert_eq!(value.to_content(), Cow::Borrowed("abc"));
     }
 
     #[test]
     fn test_to_content_quoted_simple() {
-        let value = Value { source: "\"ab cd\"", ascii_case_insensitive: false};
+        let value = Value { source: "\"ab cd\"", ascii_case_insensitive: false };
         assert_eq!(value.to_content(), Cow::Borrowed("ab cd"));
     }
 
     #[test]
     fn test_to_content_with_quoted_pair() {
-        let value = Value { source: "\"ab\\\"cd\"", ascii_case_insensitive: false};
+        let value = Value { source: "\"ab\\\"cd\"", ascii_case_insensitive: false };
         assert_eq!(value, "ab\"cd");
         let expected: Cow<'static, str> = Cow::Owned("ab\"cd".into());
         assert_eq!(value.to_content(), expected);
