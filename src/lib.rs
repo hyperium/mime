@@ -174,6 +174,18 @@ impl Mime {
     }
 
     /// Returns an iterator over the parameters.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let pkcs7: mime::Mime =
+    ///     "application/pkcs7-mime; smime-type=enveloped-data; name=smime.p7m".parse().unwrap();
+    ///
+    /// let (names, values): (Vec<_>, Vec<_>) = pkcs7.params().unzip();
+    ///
+    /// assert_eq!(names, &["smime-type", "name"]);
+    /// assert_eq!(values, &["enveloped-data", "smime.p7m"]);
+    /// ```
     #[inline]
     pub fn params(&self) -> Params {
         let inner = match self.params {
@@ -190,7 +202,17 @@ impl Mime {
         Params(inner)
     }
 
-    /// returns true if the media type has at last one parameter
+    /// Returns true if the media type has at last one parameter.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let plain_text: mime::Mime = "text/plain".parse().unwrap();
+    /// assert_eq!(plain_text.has_params(), false);
+    ///
+    /// let plain_text_utf8: mime::Mime = "text/plain; charset=utf-8".parse().unwrap();
+    /// assert_eq!(plain_text_utf8.has_params(), true);
+    /// ```
     #[inline]
     pub fn has_params(&self) -> bool {
         self.semicolon().is_some()
@@ -509,7 +531,7 @@ names! {
 ///
 /// # Example
 /// ```
-/// # use mime::{self, Mime, CHARSET, UTF_8};
+/// # use mime::{Mime, CHARSET, UTF_8};
 /// let mime = "text/plain; charset=utf-8".parse::<Mime>().unwrap();
 /// assert_eq!(mime.get_param(CHARSET), Some(UTF_8));
 /// ```
@@ -773,6 +795,18 @@ mod tests {
         assert_eq!(second_param_right, "bar");
 
         assert_eq!(params.next(), None);
+    }
+
+    #[test]
+    fn test_has_params() {
+        let mime = TEXT_PLAIN;
+        assert_eq!(mime.has_params(), false);
+
+        let mime = Mime::from_str("text/plain; charset=utf-8").unwrap();
+        assert_eq!(mime.has_params(), true);
+
+        let mime = Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap();
+        assert_eq!(mime.has_params(), true);
     }
 
     #[test]
