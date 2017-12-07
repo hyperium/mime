@@ -190,7 +190,17 @@ impl Mime {
         Params(inner)
     }
 
-    /// returns true if the media type has at last one parameter
+    /// Returns true if the media type has at last one parameter.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let plain_text: mime::Mime = "text/plain".parse().unwrap();
+    /// assert_eq!(plain_text.has_params(), false);
+    ///
+    /// let plain_text_utf8: mime::Mime = "text/plain; charset=utf-8".parse().unwrap();
+    /// assert_eq!(plain_text_utf8.has_params(), true);
+    /// ```
     #[inline]
     pub fn has_params(&self) -> bool {
         self.semicolon().is_some()
@@ -773,6 +783,18 @@ mod tests {
         assert_eq!(second_param_right, "bar");
 
         assert_eq!(params.next(), None);
+    }
+
+    #[test]
+    fn test_has_params() {
+        let mime = TEXT_PLAIN;
+        assert_eq!(mime.has_params(), false);
+
+        let mime = Mime::from_str("text/plain; charset=utf-8").unwrap();
+        assert_eq!(mime.has_params(), true);
+
+        let mime = Mime::from_str("text/plain; charset=utf-8; foo=bar").unwrap();
+        assert_eq!(mime.has_params(), true);
     }
 
     #[test]
