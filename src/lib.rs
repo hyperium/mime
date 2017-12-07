@@ -531,7 +531,7 @@ names! {
 ///
 /// # Example
 /// ```
-/// # use mime::{self, Mime, CHARSET, UTF_8};
+/// # use mime::{Mime, CHARSET, UTF_8};
 /// let mime = "text/plain; charset=utf-8".parse::<Mime>().unwrap();
 /// assert_eq!(mime.get_param(CHARSET), Some(UTF_8));
 /// ```
