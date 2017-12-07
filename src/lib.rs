@@ -174,6 +174,18 @@ impl Mime {
     }
 
     /// Returns an iterator over the parameters.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let pkcs7: mime::Mime =
+    ///     "application/pkcs7-mime; smime-type=enveloped-data; name=smime.p7m".parse().unwrap();
+    ///
+    /// let (names, values): (Vec<_>, Vec<_>) = pkcs7.params().unzip();
+    ///
+    /// assert_eq!(names, &["smime-type", "name"]);
+    /// assert_eq!(values, &["enveloped-data", "smime.p7m"]);
+    /// ```
     #[inline]
     pub fn params(&self) -> Params {
         let inner = match self.params {
