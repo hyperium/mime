@@ -470,7 +470,7 @@ macro_rules! names {
 
         #[test]
         fn test_names_macro_consts() {
-            #[allow(unused_imports)]
+            #[allow(deprecated,unused_imports)]
             use std::ascii::AsciiExt;
             $(
             assert_eq!($id.source.to_ascii_lowercase(), $id.source);
