@@ -655,6 +655,8 @@ mimes! {
     IMAGE_BMP, "image/bmp", 5;
 
     APPLICATION_JSON, "application/json", 11;
+    APPLICATION_JAVASCRIPT, "application/javascript", 11;
+    APPLICATION_JAVASCRIPT_UTF_8, "application/javascript; charset=utf-8", 11, None, 22;
     APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded", 11;
     APPLICATION_OCTET_STREAM, "application/octet-stream", 11;
     APPLICATION_MSGPACK, "application/msgpack", 11;
