@@ -1,3 +1,4 @@
+#[allow(unused, deprecated)]
 use std::ascii::AsciiExt;
 use std::error::Error;
 use std::fmt;
