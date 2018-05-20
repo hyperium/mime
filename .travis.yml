@@ -14,7 +14,7 @@ dist: trusty
 cache: cargo
 
 script:
-    - cargo build
+    - cargo build --all-features
     - cargo clean
     - cargo test --all-features
     - rustdoc --test README.md -L target/debug/deps
