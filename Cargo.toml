@@ -14,3 +14,10 @@ publish = false # breaking changes from 0.3.x
 [dependencies]
 unicase = "2.0"
 quoted-string = "0.2.2"
+
+[dependencies.serde]
+optional = true
+version = "1.0"
+
+[dev-dependencies]
+serde_json = "1.0.17"

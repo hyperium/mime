@@ -32,6 +32,9 @@
 extern crate unicase;
 extern crate quoted_string;
 
+#[cfg(feature = "serde")]
+extern crate serde;
+
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
@@ -46,6 +49,9 @@ pub use self::value::Value;
 mod name;
 mod parse;
 mod value;
+
+#[cfg(feature = "serde")]
+mod serde_impl;
 
 /// A parsed mime or media type.
 #[derive(Clone)]
@@ -890,6 +896,20 @@ mod tests {
         let mime1 = Mime::from_str(r#"text/x-custom; abc=a"#).unwrap();
         let mime2 = Mime::from_str(r#"text/x-custom; aBc=a"#).unwrap();
         assert_eq!(mime1, mime2);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_tests() {
+        extern crate serde_json;
+
+        let js = serde_json::to_string(&TEXT_JAVASCRIPT).unwrap();
+
+        assert_eq!(js, r#""text/javascript""#);
+
+        assert_eq!(serde_json::from_str::<Mime>(&js).unwrap(), TEXT_JAVASCRIPT);
+
+        assert!(serde_json::from_str::<Mime>("invalid").is_err());
     }
 }
 
