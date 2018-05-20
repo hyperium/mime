@@ -561,7 +561,7 @@ macro_rules! mimes {
 
         #[test]
         fn test_mimes_macro_consts() {
-            [
+            let _ = [
             $(
             mime_constant_test! {
                 $id, $($piece),*
