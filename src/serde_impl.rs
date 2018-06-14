@@ -33,7 +33,7 @@ impl<'de> Deserialize<'de> for Mime {
             where
                 E: de::Error,
             {
-                Mime::from_str(value).or_else(|e| Err(E::custom(format!("{}", e))))
+                Mime::from_str(value).map_err(E::custom)
             }
         }
 
