@@ -1,8 +1,10 @@
+extern crate serde;
+
 use std::fmt;
 use std::str::FromStr;
 
-use serde::de::{self, Deserialize, Deserializer};
-use serde::ser::{Serialize, Serializer};
+use self::serde::de::{self, Deserialize, Deserializer};
+use self::serde::ser::{Serialize, Serializer};
 
 use super::Mime;
 

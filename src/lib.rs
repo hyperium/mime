@@ -32,9 +32,6 @@
 extern crate unicase;
 extern crate quoted_string;
 
-#[cfg(feature = "serde")]
-extern crate serde;
-
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
@@ -51,7 +48,7 @@ mod parse;
 mod value;
 
 #[cfg(feature = "serde")]
-mod serde_impl;
+mod serde;
 
 /// A parsed mime or media type.
 #[derive(Clone)]
@@ -900,7 +897,7 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
-    fn serde_tests() {
+    fn test_serde() {
         extern crate serde_json;
 
         let js = serde_json::to_string(&TEXT_JAVASCRIPT).unwrap();
