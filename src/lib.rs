@@ -674,6 +674,7 @@ mimes! {
     APPLICATION_OCTET_STREAM, "application/octet-stream", 11;
     APPLICATION_MSGPACK, "application/msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
+    APPLICATION_DNS, "application/dns-message", 11;
 
     MULTIPART_FORM_DATA, "multipart/form-data", 9;
 }
