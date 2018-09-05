@@ -868,4 +868,86 @@ mod tests {
         assert_ne!(param, "abc");
         assert_ne!("abc", param);
     }
+
+    #[test]
+    fn test_mime_with_utf8_values() {
+        let mime = Mime::from_str(r#"application/x-custom; param="Straße""#).unwrap();
+        assert_eq!(mime.get_param("param").unwrap(), "Straße");
+    }
+
+    #[test]
+    fn test_mime_with_multiple_plus() {
+        let mime = Mime::from_str(r#"application/x-custom+bad+suffix"#).unwrap();
+        assert_eq!(mime.type_(), "application");
+        assert_eq!(mime.subtype(), "x-custom+bad");
+        assert_eq!(mime.suffix().unwrap(), "suffix");
+    }
+
+    #[test]
+    fn test_mime_param_with_empty_quoted_string() {
+        let mime = Mime::from_str(r#"application/x-custom;param="""#).unwrap();
+        assert_eq!(mime.get_param("param").unwrap(), "");
+    }
+
+    #[test]
+    fn test_mime_param_with_tab() {
+        let mime = Mime::from_str("application/x-custom;param=\"\t\"").unwrap();
+        assert_eq!(mime.get_param("param").unwrap(), "\t");
+    }
+
+    #[test]
+    fn test_mime_param_with_quoted_tab() {
+        let mime = Mime::from_str("application/x-custom;param=\"\\\t\"").unwrap();
+        assert_eq!(mime.get_param("param").unwrap(), "\t");
+    }
+
+    #[test]
+    fn test_reject_tailing_half_quoted_pair() {
+        let mime = Mime::from_str(r#"application/x-custom;param="\""#);
+        assert!(mime.is_err());
+    }
+
+    #[test]
+    fn test_parameter_eq_is_order_independent() {
+        let mime_a = Mime::from_str(r#"application/x-custom; param1=a; param2=b"#).unwrap();
+        let mime_b = Mime::from_str(r#"application/x-custom; param2=b; param1=a"#).unwrap();
+        assert_eq!(mime_a, mime_b);
+    }
+
+    #[test]
+    fn test_parameter_eq_is_order_independent_with_str() {
+        let mime_a = Mime::from_str(r#"application/x-custom; param1=a; param2=b"#).unwrap();
+        let mime_b = r#"application/x-custom; param2=b; param1=a"#;
+        assert_eq!(mime_a, mime_b);
+    }
+
+    #[test]
+    fn test_name_eq_is_case_insensitive() {
+        let mime1 = Mime::from_str(r#"text/x-custom; abc=a"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/x-custom; aBc=a"#).unwrap();
+        assert_eq!(mime1, mime2);
+    }
+
+    #[test]
+    fn test_ignore_invalid_param() {
+        let mime1 = Mime::from_str(r#"text/css;blah; foo=bar; bleh"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1, mime2);
+
+        let mime1 = Mime::from_str(r#"text/css;blah"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/css"#).unwrap();
+        assert_eq!(mime1, mime2);
+
+        let mime1 = Mime::from_str(r#"text/css;blah; foo=bar"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1, mime2);
+
+        let mime1 = Mime::from_str(r#"text/css;blah; foo=bar "#).unwrap();
+        let mime2 = Mime::from_str(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1, mime2);
+
+        let mime1 = Mime::from_str(r#"text/css;blah; foo=bar; bleh;"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1, mime2);
+    }
 }
