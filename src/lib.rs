@@ -906,5 +906,28 @@ mod tests {
         let mime2 = Mime::from_str(r#"text/x-custom; aBc=a"#).unwrap();
         assert_eq!(mime1, mime2);
     }
+
+    #[test]
+    fn test_ignore_invalid_param() {
+        let mime1 = Mime::from_str(r#"text/css;blah; foo=bar; bleh"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1, mime2);
+
+        let mime1 = Mime::from_str(r#"text/css;blah"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/css"#).unwrap();
+        assert_eq!(mime1, mime2);
+
+        let mime1 = Mime::from_str(r#"text/css;blah; foo=bar"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1, mime2);
+
+        let mime1 = Mime::from_str(r#"text/css;blah; foo=bar "#).unwrap();
+        let mime2 = Mime::from_str(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1, mime2);
+
+        let mime1 = Mime::from_str(r#"text/css;blah; foo=bar; bleh;"#).unwrap();
+        let mime2 = Mime::from_str(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1, mime2);
+    }
 }
 
