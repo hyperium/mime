@@ -507,6 +507,7 @@ names! {
     WWW_FORM_URLENCODED, "x-www-form-urlencoded";
     MSGPACK, "msgpack";
     OCTET_STREAM, "octet-stream";
+    TAR, "tar";
     PDF, "pdf";
 
     // common font/*
@@ -673,6 +674,7 @@ mimes! {
     APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded", 11;
     APPLICATION_OCTET_STREAM, "application/octet-stream", 11;
     APPLICATION_MSGPACK, "application/msgpack", 11;
+    APPLICATION_TAR, "application/x-tar", 11;
     APPLICATION_PDF, "application/pdf", 11;
     APPLICATION_DNS, "application/dns-message", 11;
 
