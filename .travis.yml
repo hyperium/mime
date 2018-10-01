@@ -7,7 +7,7 @@ matrix:
         - rust: stable
         - rust: beta
         - rust: nightly
-        - rust: 1.18.0
+        - rust: 1.23.0
 
 sudo: false
 dist: trusty

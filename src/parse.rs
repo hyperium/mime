@@ -16,6 +16,7 @@ pub enum ParseError {
         pos: usize,
         byte: u8,
     },
+    InvalidRange,
 }
 
 impl Error for ParseError {
@@ -27,6 +28,7 @@ impl Error for ParseError {
             MissingEqual => "an equals sign (=) was missing between a parameter and its value",
             MissingQuote => "a quote (\") was missing from a parameter value",
             InvalidToken { .. } => "an invalid token was encountered",
+            InvalidRange => "unexpected asterisk",
         }
     }
 }
@@ -41,9 +43,18 @@ impl fmt::Display for ParseError {
     }
 }
 
-pub fn parse(s: &str) -> Result<Mime, ParseError> {
+#[derive(PartialEq)]
+pub(super) enum CanRange {
+    Yes,
+    No,
+}
+
+pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
     if s == "*/*" {
-        return Ok(::STAR_STAR);
+        return match can_range {
+            CanRange::Yes => Ok(::MIME_STAR_STAR),
+            CanRange::No => Err(ParseError::InvalidRange),
+        };
     }
 
     let mut iter = s.bytes().enumerate();
@@ -78,6 +89,28 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
                 start = i;
                 break;
             },
+
+            Some((i, b'*')) if i == start && can_range == CanRange::Yes => {
+                // sublevel star can only be the first character, and the next
+                // must either be the end, or `;`
+                match iter.next() {
+                    Some((i, b';')) => {
+                        start = i;
+                        break;
+                    },
+                    None => return Ok(Mime {
+                        source: Source::Dynamic(s.to_ascii_lowercase()),
+                        slash,
+                        plus,
+                        params: ParamSource::None,
+                    }),
+                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
+                        pos,
+                        byte,
+                    }),
+                }
+            },
+
             Some((_, c)) if is_token(c) => (),
             None => {
                 return Ok(Mime {
@@ -308,7 +341,7 @@ macro_rules! byte_map {
 static TOKEN_MAP: [bool; 256] = byte_map![
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0,
+    0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
@@ -346,7 +379,6 @@ fn test_lookup_tables() {
             b'%' |
             b'&' |
             b'\'' |
-            b'*' |
             b'+' |
             b'-' |
             b'.' |

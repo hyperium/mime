@@ -2,8 +2,6 @@ use std::cmp::PartialEq;
 use std::fmt;
 
 
-use unicase;
-
 /// A name section of a `Mime`.
 ///
 /// For instance, for the Mime `image/svg+xml`, it contains 3 `Name`s,
@@ -42,7 +40,7 @@ impl<'a> Name<'a> {
 impl<'a> PartialEq<str> for Name<'a> {
     #[inline]
     fn eq(&self, other: &str) -> bool {
-        unicase::eq_ascii(self.source, other)
+        self.source.eq_ignore_ascii_case(other)
     }
 }
 
@@ -100,7 +98,7 @@ impl<'a> fmt::Display for Name<'a> {
 mod test {
     use std::str::FromStr;
     use super::Name;
-    use super::super::Mime;
+    use super::super::MediaType;
 
     #[test]
     fn test_name_eq_str() {
@@ -115,8 +113,8 @@ mod test {
 
     #[test]
     fn test_name_eq_name() {
-        let mime1 = Mime::from_str(r#"text/x-custom; abc=a"#).unwrap();
-        let mime2 = Mime::from_str(r#"text/x-custom; aBc=a"#).unwrap();
+        let mime1 = MediaType::from_str(r#"text/x-custom; abc=a"#).unwrap();
+        let mime2 = MediaType::from_str(r#"text/x-custom; aBc=a"#).unwrap();
         let param1 = mime1.params().next().unwrap().0;
         let param2 = mime2.params().next().unwrap().0;
 

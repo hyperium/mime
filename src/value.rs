@@ -2,12 +2,11 @@ use std::cmp::PartialEq;
 use std::fmt;
 use std::borrow::Cow;
 
-use unicase;
 use quoted_string::{self, ContentChars, AsciiCaseInsensitiveEq};
 
 
 
-/// A parameter value section of a `Mime`.
+/// A parameter value section of a `MediaType` or `MediaRange`.
 /// 
 /// Except for the `charset` parameter, parameters 
 /// are compared case sensitive
@@ -34,7 +33,7 @@ impl<'a> Value<'a> {
     /// # Example
     ///
     /// ```
-    /// let mime = r#"text/plain; param="abc def""#.parse::<mime::Mime>().unwrap();
+    /// let mime = r#"text/plain; param="abc def""#.parse::<mime::MediaType>().unwrap();
     /// let param = mime.get_param("param").unwrap();
     /// assert_eq!(param.as_str_repr(), r#""abc def""#);
     /// ```
@@ -64,7 +63,7 @@ impl<'a> Value<'a> {
     /// use std::borrow::Cow;
     ///
     /// let raw_mime = r#"text/plain; p1="char is \""; p2="simple"; p3=simple2"#;
-    /// let mime = raw_mime.parse::<mime::Mime>().unwrap();
+    /// let mime = raw_mime.parse::<mime::MediaType>().unwrap();
     ///
     /// let param1 = mime.get_param("p1").unwrap();
     /// let expected: Cow<'static, str> = Cow::Owned(r#"char is ""#.into());
@@ -107,7 +106,7 @@ impl<'a> PartialEq<str> for Value<'a> {
                 content_chars == other
             }
         } else if self.ascii_case_insensitive {
-            unicase::eq_ascii(self.source, other)
+            self.source.eq_ignore_ascii_case(other)
         } else {
             self.source == other
         }
