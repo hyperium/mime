@@ -99,7 +99,7 @@ pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
                         break;
                     },
                     None => return Ok(Mime {
-                        source: Source::Dynamic(s.to_ascii_lowercase()),
+                        source: Source::intern(s, slash),
                         slash,
                         plus,
                         params: ParamSource::None,
@@ -114,9 +114,9 @@ pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
             Some((_, c)) if is_token(c) => (),
             None => {
                 return Ok(Mime {
-                    source: Source::Dynamic(s.to_ascii_lowercase()),
-                    slash: slash,
-                    plus: plus,
+                    source: Source::intern(s, slash),
+                    slash,
+                    plus,
                     params: ParamSource::None,
                 });
             },
@@ -130,17 +130,18 @@ pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
     // params
     let params = try!(params_from_str(s, &mut iter, start));
 
-    let src = match params {
-        ParamSource::Utf8(_) |
-        ParamSource::None => s.to_ascii_lowercase(),
-        ParamSource::Custom(semicolon, ref indices) => lower_ascii_with_params(s, semicolon, indices),
+    let source = match params {
+        ParamSource::None => Source::intern(s, slash),
+        // TODO: update intern to handle these
+        ParamSource::Utf8(_) => Source::Dynamic(s.to_ascii_lowercase()),
+        ParamSource::Custom(semicolon, ref indices) => Source::Dynamic(lower_ascii_with_params(s, semicolon, indices)),
     };
 
     Ok(Mime {
-        source: Source::Dynamic(src),
-        slash: slash,
-        plus: plus,
-        params: params,
+        source,
+        slash,
+        plus,
+        params,
     })
 }
 

@@ -14,7 +14,7 @@
 //! assert_eq!(plain_text, mime::TEXT_PLAIN);
 //! ```
 //!
-//! ## Inspecting Mimes
+//! ## Inspecting Media Types
 //!
 //! ```
 //! let mime = mime::TEXT_PLAIN;
@@ -23,6 +23,14 @@
 //!     (mime::TEXT, _) => println!("structured text"),
 //!     _ => println!("not text"),
 //! }
+//! ```
+//!
+//! ## Using Media Ranges for matching
+//!
+//!
+//! ```
+//! assert!(mime::STAR_STAR.matches(&mime::TEXT_PLAIN));
+//! assert!(mime::TEXT_STAR.matches(&mime::TEXT_PLAIN));
 //! ```
 
 
@@ -883,6 +891,7 @@ macro_rules! mimes {
             }
         )+)+
 
+
         #[test]
         fn test_mimes_macro_consts() {
             let _ = [
@@ -913,12 +922,17 @@ macro_rules! mime_constant {
 
 
     (FULL $kind:ident, $id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
+
+        impl Source {
+            const $id: Source = Source::Atom(__Atoms::$id as u8, $src);
+        }
+
         #[doc = "`"]
         #[doc = $src]
         #[doc = "`"]
         pub const $id: $kind = $kind {
             mime: Mime {
-                source: Source::Atom(__Atoms::$id as u8, $src),
+                source: Source::$id,
                 slash: $slash,
                 plus: $plus,
                 params: $params,
@@ -943,6 +957,8 @@ macro_rules! mime_constant_test {
 
     (FULL $id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => ({
         let __mime = $id;
+
+        // check slash, plus, and semicolon are in correct positions
         let __slash = __mime.as_ref().as_bytes()[$slash];
         assert_eq!(__slash, b'/', "{:?} has {:?} at slash position {:?}", __mime, __slash as char, $slash);
         if let Some(plus) = __mime.mime.plus {
@@ -957,13 +973,214 @@ macro_rules! mime_constant_test {
         } else if let ParamSource::None = __mime.mime.params {
             assert!(!__mime.as_ref().as_bytes().contains(&b';'));
         } else {
-            unreachable!();
+            unreachable!("consts wont have ParamSource::Custom");
+        }
+
+
+        // check that parsing can intern constants
+        if let ParamSource::None = __mime.mime.params {
+            let __parsed = parse::parse($src, parse::CanRange::Yes).expect("parse const");
+            match __parsed.source {
+                Source::Atom(a, $src) if __mime.mime.atom() == a => (),
+                _ => {
+                    panic!(
+                        "did not intern {:?} correctly: slash={}, sub={}",
+                        $src,
+                        $slash,
+                        $src.len() - $slash - 1,
+                    );
+                }
+            }
         }
 
         // prevent ranges from being MediaTypes
         __mime.test_assert_asterisks();
+
+        // return Atom to sanity check no duplicates
         __mime.mime.atom()
     })
+}
+
+
+impl Source {
+    fn intern(s: &str, slash: usize) -> Source {
+        debug_assert!(
+            s.len() > slash,
+            "intern called with illegal slash position: {:?}[{:?}]",
+            s,
+            slash,
+        );
+
+        let top = &s[..slash];
+        let sub = &s[slash + 1..];
+
+        match slash {
+            4 => {
+                if top == TEXT {
+                    match sub.len() {
+                        1 => {
+                            if sub.as_bytes()[0] == b'*' {
+                                return Source::TEXT_STAR;
+                            }
+                        }
+                        3 => {
+                            if sub == CSS {
+                                return Source::TEXT_CSS;
+                            }
+                            if sub == XML {
+                                return Source::TEXT_XML;
+                            }
+                            if sub == CSV {
+                                return Source::TEXT_CSV;
+                            }
+                        },
+                        4 => {
+                            if sub == HTML {
+                                return Source::TEXT_HTML;
+                            }
+                        }
+                        5 => {
+                            if sub == PLAIN {
+                                return Source::TEXT_PLAIN;
+                            }
+                            if sub == VCARD {
+                                return Source::TEXT_VCARD;
+                            }
+                        }
+                        10 => {
+                            if sub == JAVASCRIPT {
+                                return Source::TEXT_JAVASCRIPT;
+                            }
+                        }
+                        12 => {
+                            if sub == EVENT_STREAM {
+                                return Source::TEXT_EVENT_STREAM;
+                            }
+                        },
+                        20 => {
+                            if sub == (Name { source: "tab-separated-values" }) {
+                                return Source::TEXT_TAB_SEPARATED_VALUES;
+                            }
+                        }
+                        _ => (),
+                    }
+                } else if top == FONT {
+                    match sub.len() {
+                        4 => {
+                            if sub == WOFF {
+                                return Source::FONT_WOFF;
+                            }
+                        },
+                        5 => {
+                            if sub == WOFF2 {
+                                return Source::FONT_WOFF2;
+                            }
+                        },
+                        _ => (),
+                    }
+                }
+            },
+            5 => {
+                if top == IMAGE {
+                    match sub.len() {
+                        1 => {
+                            if sub.as_bytes()[0] == b'*' {
+                                return Source::IMAGE_STAR;
+                            }
+                        }
+                        3 => {
+                            if sub == PNG {
+                                return Source::IMAGE_PNG;
+                            }
+                            if sub == GIF {
+                                return Source::IMAGE_GIF;
+                            }
+                            if sub == BMP {
+                                return Source::IMAGE_BMP;
+                            }
+                        }
+                        4 => {
+                            if sub == JPEG {
+                                return Source::IMAGE_JPEG;
+                            }
+                        },
+                        7 => {
+                            if sub.as_bytes()[3] == b'+'
+                                && &sub[..3] == SVG
+                                && &sub[4..] == XML {
+                                return Source::IMAGE_SVG;
+                            }
+                        },
+                        _ => (),
+
+                    }
+                } else if top == VIDEO {
+                    match sub.len() {
+                        1 => {
+                            if sub.as_bytes()[0] == b'*' {
+                                return Source::VIDEO_STAR;
+                            }
+                        },
+                        _ => (),
+                    }
+                } else if top == AUDIO {
+                    match sub.len() {
+                        1 => {
+                            if sub.as_bytes()[0] == b'*' {
+                                return Source::AUDIO_STAR;
+                            }
+                        },
+                        _ => (),
+                    }
+                }
+            },
+            11 => {
+                if top == APPLICATION {
+                    match sub.len() {
+                        3 => {
+                            if sub == PDF {
+                                return Source::APPLICATION_PDF;
+                            }
+                        }
+                        4 => {
+                            if sub == JSON {
+                                return Source::APPLICATION_JSON;
+                            }
+                        },
+                        7 => {
+                            if sub == MSGPACK {
+                                return Source::APPLICATION_MSGPACK;
+                            }
+                        },
+                        10 => {
+                            if sub == JAVASCRIPT {
+                                return Source::APPLICATION_JAVASCRIPT;
+                            }
+                        },
+                        11 => {
+                            if sub == (Name { source: "dns-message" }) {
+                                return Source::APPLICATION_DNS;
+                            }
+                        },
+                        12 => {
+                            if sub == OCTET_STREAM {
+                                return Source::APPLICATION_OCTET_STREAM;
+                            }
+                        }
+                        21 => {
+                            if sub == WWW_FORM_URLENCODED {
+                                return Source::APPLICATION_WWW_FORM_URLENCODED;
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+            }
+            _ => (),
+        }
+
+        Source::Dynamic(s.to_ascii_lowercase())
+    }
 }
 
 
@@ -1003,8 +1220,6 @@ mimes! {
     APPLICATION_MSGPACK, "application/msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
     APPLICATION_DNS, "application/dns-message", 11;
-
-    MULTIPART_FORM_DATA, "multipart/form-data", 9;
 
     // media-ranges
     @ MediaRange:
