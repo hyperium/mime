@@ -679,6 +679,14 @@ mimes! {
     APPLICATION_MSGPACK, "application/msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
     APPLICATION_DNS, "application/dns-message", 11;
+    APPLICATION_VEGA_V2, "application/vnd.vega.v2+json", 11, Some(23);
+    APPLICATION_VEGA_V3, "application/vnd.vega.v3+json", 11, Some(23);
+    APPLICATION_VEGALITE_V1, "application/vnd.vegalite.v1+json", 11, Some(27);
+    APPLICATION_VEGALITE_V2, "application/vnd.vegalite.v2+json", 11, Some(27);
+    APPLICATION_VEGALITE_V3, "application/vnd.vegalite.v3+json", 11, Some(27);
+    APPLICATION_PLOTY, "application/vnd.plotly.v1+json", 11, Some(25);
+    APPLICATION_GEOJSON, "application/geo+json", 11, Some(15);
+    APPLICATION_FASTA, "application/vnd.fasta.fasta", 11;
 
     MULTIPART_FORM_DATA, "multipart/form-data", 9;
 }
