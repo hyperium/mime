@@ -510,6 +510,14 @@ names! {
     MSGPACK, "msgpack";
     OCTET_STREAM, "octet-stream";
     PDF, "pdf";
+    VEGA_V2, "vnd.vega.v2";
+    VEGA_V3, "vnd.vega.v3";
+    VEGALITE_V1, "vnd.vegalite.v1+json";
+    VEGALITE_V2, "vnd.vegalite.v2+json";
+    VEGALITE_V3, "vnd.vegalite.v3+json";
+    PLOTY, "vnd.plotly.v1+json";
+    GEOJSON, "geo+json";
+    FASTA, "vnd.fasta.fasta";
 
     // common font/*
     WOFF, "woff";
