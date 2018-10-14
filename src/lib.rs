@@ -501,6 +501,7 @@ names! {
     CSV, "csv";
     EVENT_STREAM, "event-stream";
     VCARD, "vcard";
+    MARKDOWN, "markdown";
 
     // common application/*
     JSON, "json";
@@ -656,6 +657,7 @@ mimes! {
     TEXT_TAB_SEPARATED_VALUES, "text/tab-separated-values", 4;
     TEXT_TAB_SEPARATED_VALUES_UTF_8, "text/tab-separated-values; charset=utf-8", 4, None, 25;
     TEXT_VCARD, "text/vcard", 4;
+    TEXT_MARKDOWN, "text/markdown", 4;
 
     IMAGE_STAR, "image/*", 5;
     IMAGE_JPEG, "image/jpeg", 5;
