@@ -1,15 +1,13 @@
 [package]
 
 name = "mime"
-version = "0.3.9" # remember to update html_root_url
+version = "0.3.10" # remember to update html_root_url
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 license = "MIT/Apache-2.0"
 description = "Strongly Typed Mimes"
 documentation = "https://docs.rs/mime"
 repository = "https://github.com/hyperium/mime"
 keywords = ["mime", "media-extensions", "media-types"]
-
-publish = false # breaking changes from 0.3.x
 
 [dependencies]
 unicase = "2.0"
