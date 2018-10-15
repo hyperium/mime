@@ -10,6 +10,7 @@ use super::{Mime, Source, ParamSource, Indexed, CHARSET, UTF_8};
 #[derive(Debug)]
 pub enum ParseError {
     MissingSlash,
+    MissingEqual,
     MissingQuote,
     InvalidToken {
         pos: usize,
@@ -23,6 +24,7 @@ impl Error for ParseError {
 
         match *self {
             MissingSlash => "a slash (/) was missing between the type and subtype",
+            MissingEqual => "an equals sign (=) was missing between a parameter and its value",
             MissingQuote => "a quote (\") was missing from a parameter value",
             InvalidToken { .. } => "an invalid token was encountered",
         }
@@ -97,7 +99,7 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
 
     let src = match params {
         ParamSource::Utf8(_) |
-        ParamSource::None => s[0..start].to_ascii_lowercase(),
+        ParamSource::None => s.to_ascii_lowercase(),
         ParamSource::Custom(semicolon, ref indices) => lower_ascii_with_params(s, semicolon, indices),
     };
 
@@ -114,25 +116,10 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
     let semicolon = start;
     start += 1;
     let mut params = ParamSource::None;
-    let mut iter = iter.peekable();
     'params: while start < s.len() {
         let name;
         // name
         'name: loop {
-            // XXX: With NLL we can call iter.next() in the if arm instead of having a temporary
-            // variable
-            let is_invalid_name = if let Some(&(i, b';')) = iter.peek() {
-                start = i + 1;
-                true
-            } else {
-                false
-            };
-
-            if is_invalid_name {
-                iter.next();
-                continue 'params;
-            }
-
             match iter.next() {
                 Some((i, b' ')) if i == start => start = i + 1,
                 Some((_, c)) if is_token(c) => (),
@@ -141,7 +128,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                     start = i + 1;
                     break 'name;
                 },
-                None => break 'params,
+                None => return Err(ParseError::MissingEqual),
                 Some((pos, byte)) => return Err(ParseError::InvalidToken {
                     pos: pos,
                     byte: byte,
@@ -178,12 +165,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                         value = Indexed(start, i);
                         start = i + 1;
                         break 'value;
-                    },
-                    Some((_, b' ')) => {
-                        value = Indexed(start, s.len());
-                        start = s.len();
-                        break 'value;
-                    },
+                    }
                     None => {
                         value = Indexed(start, s.len());
                         start = s.len();
