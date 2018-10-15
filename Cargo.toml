@@ -9,5 +9,8 @@ documentation = "https://docs.rs/mime"
 repository = "https://github.com/hyperium/mime"
 keywords = ["mime", "media-extensions", "media-types"]
 
+publish = false # breaking changes from 0.3.x
+
 [dependencies]
 unicase = "2.0"
+quoted-string = "0.2.2"
