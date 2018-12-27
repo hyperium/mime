@@ -1,3 +1,4 @@
+sudo: false
 language: rust
 matrix:
     fast_finish: true
@@ -9,12 +10,4 @@ matrix:
         - rust: nightly
         - rust: 1.23.0
 
-sudo: false
-dist: trusty
-cache: cargo
 
-script:
-    - cargo build
-    - cargo clean
-    - cargo test
-    - rustdoc --test README.md -L target/debug/deps
