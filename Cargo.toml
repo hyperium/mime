@@ -3,11 +3,12 @@
 name = "mime"
 version = "0.4.0-a.0" # remember to update html_root_url
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
-license = "MIT/Apache-2.0"
+license = "MIT"
 description = "Strongly Typed Mimes"
 documentation = "https://docs.rs/mime"
 repository = "https://github.com/hyperium/mime"
 keywords = ["mime", "media-extensions", "media-types"]
+edition = "2018"
 
 publish = false # breaking changes from 0.3.x
 

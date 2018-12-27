@@ -1,5 +1,3 @@
-#[allow(deprecated,unused_imports)]
-use std::ascii::AsciiExt;
 use std::error::Error;
 use std::fmt;
 use std::iter::Enumerate;
@@ -52,7 +50,7 @@ pub(super) enum CanRange {
 pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
     if s == "*/*" {
         return match can_range {
-            CanRange::Yes => Ok(::MIME_STAR_STAR),
+            CanRange::Yes => Ok(crate::MIME_STAR_STAR),
             CanRange::No => Err(ParseError::InvalidRange),
         };
     }
@@ -73,9 +71,8 @@ pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
             Some((pos, byte)) => return Err(ParseError::InvalidToken {
                 pos: pos,
                 byte: byte,
-            })
+            }),
         };
-
     }
 
     // sublevel
@@ -128,7 +125,7 @@ pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
     }
 
     // params
-    let params = try!(params_from_str(s, &mut iter, start));
+    let params = params_from_str(s, &mut iter, start)?;
 
     let source = match params {
         ParamSource::None => Source::intern(s, slash),
