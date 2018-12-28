@@ -622,6 +622,8 @@ names! {
     CSV, "csv";
     EVENT_STREAM, "event-stream";
     VCARD, "vcard";
+    MARKDOWN, "markdown";
+    LATEX, "latex";
 
     // common application/*
     JSON, "json";
@@ -629,6 +631,14 @@ names! {
     MSGPACK, "msgpack";
     OCTET_STREAM, "octet-stream";
     PDF, "pdf";
+    VEGA_V2, "vnd.vega.v2";
+    VEGA_V3, "vnd.vega.v3";
+    VEGALITE_V1, "vnd.vegalite.v1+json";
+    VEGALITE_V2, "vnd.vegalite.v2+json";
+    VEGALITE_V3, "vnd.vegalite.v3+json";
+    PLOTY, "vnd.plotly.v1+json";
+    GEOJSON, "geo+json";
+    FASTA, "vnd.fasta.fasta";
 
     // common font/*
     WOFF, "woff";
@@ -1021,6 +1031,8 @@ mimes! {
     TEXT_TAB_SEPARATED_VALUES, "text/tab-separated-values", 4;
     TEXT_TAB_SEPARATED_VALUES_UTF_8, "text/tab-separated-values; charset=utf-8", 4, None, 25;
     TEXT_VCARD, "text/vcard", 4;
+    TEXT_MARKDOWN, "text/markdown", 4;
+    TEXT_LATEX, "text/latex", 4;
 
     IMAGE_JPEG, "image/jpeg", 5;
     IMAGE_GIF, "image/gif", 5;
@@ -1039,6 +1051,14 @@ mimes! {
     APPLICATION_MSGPACK, "application/msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
     APPLICATION_DNS, "application/dns-message", 11;
+    APPLICATION_VEGA_V2, "application/vnd.vega.v2+json", 11, Some(23);
+    APPLICATION_VEGA_V3, "application/vnd.vega.v3+json", 11, Some(23);
+    APPLICATION_VEGALITE_V1, "application/vnd.vegalite.v1+json", 11, Some(27);
+    APPLICATION_VEGALITE_V2, "application/vnd.vegalite.v2+json", 11, Some(27);
+    APPLICATION_VEGALITE_V3, "application/vnd.vegalite.v3+json", 11, Some(27);
+    APPLICATION_PLOTY, "application/vnd.plotly.v1+json", 11, Some(25);
+    APPLICATION_GEOJSON, "application/geo+json", 11, Some(15);
+    APPLICATION_FASTA, "application/vnd.fasta.fasta", 11;
 
     // media-ranges
     @ MediaRange:
