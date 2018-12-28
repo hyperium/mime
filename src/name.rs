@@ -1,7 +1,6 @@
 use std::cmp::PartialEq;
 use std::fmt;
 
-
 /// A name section of a `Mime`.
 ///
 /// For instance, for the Mime `image/svg+xml`, it contains 3 `Name`s,
@@ -13,20 +12,29 @@ pub struct Name<'a> {
     /// The underlying str slice, which is _required to be lowercase_.
     /// Comparisons between two Name instances expect this, as they
     /// have to use `derive(PartialEq)` to be usable in a pattern
-    pub(crate) source: &'a str,
+    source: &'a str,
 }
 
 
 impl<'a> Name<'a> {
+    #[inline]
+    pub(crate) fn new(source: &'a str) -> Self {
+        Name { source }
+    }
+
+    pub(crate) const fn constant(source: &'a str) -> Self {
+        Name { source }
+    }
+
     /// Get the value of this `Name` as a string.
     ///
     /// Note that the borrow is not tied to `&self` but the `'a` lifetime, allowing the
     /// string to outlive `Name`. Alternately, there is an `impl<'a> From<Name<'a>> for &'a str`
     /// which isn't rendered by Rustdoc, that can be accessed using `str::from(name)` or `name.into()`.
+    #[inline]
     pub fn as_str(&self) -> &'a str {
         self.source
     }
-
 }
 
 impl<'a> PartialEq<str> for Name<'a> {

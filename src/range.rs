@@ -40,9 +40,7 @@ impl MediaRange {
     /// ```
     #[inline]
     pub fn type_(&self) -> Name {
-        Name {
-            source: self.mime.type_(),
-        }
+        Name::new(self.mime.type_())
     }
 
     /// Get the subtype of this `MediaRange`.
@@ -61,9 +59,7 @@ impl MediaRange {
     /// ```
     #[inline]
     pub fn subtype(&self) -> Name {
-        Name {
-            source: self.mime.subtype(),
-        }
+        Name::new(self.mime.subtype())
     }
 
     /// Get an optional +suffix for this `MediaRange`.
@@ -83,7 +79,7 @@ impl MediaRange {
     /// ```
     #[inline]
     pub fn suffix(&self) -> Option<Name> {
-        self.mime.suffix().map(|source| Name { source })
+        self.mime.suffix().map(Name::new)
     }
 
     /// Checks if this `MediaRange` matches a specific `MediaType`.
@@ -129,7 +125,7 @@ impl MediaRange {
 
     fn matches_params(&self, mt: &MediaType) -> bool {
         for (name, value) in self.params() {
-            if name != "q" && mt.get_param(name) != Some(value) {
+            if name != "q" && mt.param(name) != Some(value) {
                 return false;
             }
         }
@@ -144,11 +140,11 @@ impl MediaRange {
     /// ```
     /// let range = mime::MediaRange::from(mime::TEXT_PLAIN_UTF_8);
     ///
-    /// assert_eq!(range.get_param(mime::CHARSET), Some(mime::UTF_8));
-    /// assert_eq!(range.get_param("charset").unwrap(), "utf-8");
-    /// assert_eq!(range.get_param("boundary"), None);
+    /// assert_eq!(range.param(mime::CHARSET), Some(mime::UTF_8));
+    /// assert_eq!(range.param("charset").unwrap(), "utf-8");
+    /// assert_eq!(range.param("boundary"), None);
     /// ```
-    pub fn get_param<'a, N>(&'a self, attr: N) -> Option<Value<'a>>
+    pub fn param<'a, N>(&'a self, attr: N) -> Option<Value<'a>>
     where
         N: PartialEq<Name<'a>>,
     {
@@ -179,13 +175,9 @@ impl MediaRange {
     #[inline]
     pub fn params(&self) -> impl Iterator<Item = (Name, Value)> {
         self.mime.params().map(|(n, v)| {
-            (
-                Name { source: n },
-                Value {
-                    source: v,
-                    ascii_case_insensitive: n == crate::CHARSET,
-                },
-            )
+            let name = Name::new(n);
+            let value = Value::new(v).for_name(name);
+            (name, value)
         })
     }
 

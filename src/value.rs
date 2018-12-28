@@ -4,7 +4,19 @@ use std::borrow::Cow;
 
 use quoted_string::{self, ContentChars, AsciiCaseInsensitiveEq};
 
+use crate::Name;
 
+/// a `Value` usable for a charset parameter.
+///
+/// # Example
+/// ```
+/// let mime = mime::TEXT_PLAIN_UTF_8;
+/// assert_eq!(mime.param(mime::CHARSET), Some(mime::UTF_8));
+/// ```
+pub const UTF_8: Value = Value {
+    source: "utf-8",
+    ascii_case_insensitive: true,
+};
 
 /// A parameter value section of a `MediaType` or `MediaRange`.
 /// 
@@ -12,13 +24,28 @@ use quoted_string::{self, ContentChars, AsciiCaseInsensitiveEq};
 /// are compared case sensitive
 #[derive(Clone, Copy, Eq, PartialOrd, Ord, Hash)]
 pub struct Value<'a> {
-    pub(crate) source: &'a str,
-    pub(crate) ascii_case_insensitive: bool
+    source: &'a str,
+    ascii_case_insensitive: bool
 }
 
 
 impl<'a> Value<'a> {
-    
+    #[inline]
+    pub(crate) fn new(source: &'a str) -> Self {
+        Value {
+            source,
+            ascii_case_insensitive: false,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn for_name(self, name: Name) -> Self {
+        Value {
+            source: self.source,
+            ascii_case_insensitive: name == crate::CHARSET,
+        }
+    }
+
     /// Returns the underlying representation.
     ///
     /// The underlying representation differs from the content,
@@ -34,7 +61,7 @@ impl<'a> Value<'a> {
     ///
     /// ```
     /// let mime = r#"text/plain; param="abc def""#.parse::<mime::MediaType>().unwrap();
-    /// let param = mime.get_param("param").unwrap();
+    /// let param = mime.param("param").unwrap();
     /// assert_eq!(param.as_str_repr(), r#""abc def""#);
     /// ```
     pub fn as_str_repr(&self) -> &'a str {
@@ -65,14 +92,14 @@ impl<'a> Value<'a> {
     /// let raw_mime = r#"text/plain; p1="char is \""; p2="simple"; p3=simple2"#;
     /// let mime = raw_mime.parse::<mime::MediaType>().unwrap();
     ///
-    /// let param1 = mime.get_param("p1").unwrap();
+    /// let param1 = mime.param("p1").unwrap();
     /// let expected: Cow<'static, str> = Cow::Owned(r#"char is ""#.into());
     /// assert_eq!(param1.to_content(), expected);
     ///
-    /// let param2 = mime.get_param("p2").unwrap();
+    /// let param2 = mime.param("p2").unwrap();
     /// assert_eq!(param2.to_content(), Cow::Borrowed("simple"));
     ///
-    /// let param3 = mime.get_param("p3").unwrap();
+    /// let param3 = mime.param("p3").unwrap();
     /// assert_eq!(param3.to_content(), Cow::Borrowed("simple2"));
     /// ```
     ///

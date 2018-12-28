@@ -52,7 +52,7 @@ pub use mime_macro::media_type;
 pub use self::name::Name;
 pub use self::range::MediaRange;
 pub use self::type_::MediaType;
-pub use self::value::Value;
+pub use self::value::{Value, UTF_8};
 
 mod name;
 mod range;
@@ -95,15 +95,13 @@ macro_rules! names {
     ($($id:ident, $e:expr;)*) => (
         $(
         #[doc = $e]
-        pub const $id: Name<'static> = Name {
-            source: $e,
-        };
+        pub const $id: Name<'static> = Name::constant($e);
         )*
 
         #[test]
         fn test_names_macro_consts() {
             $(
-            assert_eq!($id.source.to_ascii_lowercase(), $id.source);
+            assert_eq!($id.as_ref().to_ascii_lowercase(), $id.as_ref());
             )*
         }
     )
@@ -164,18 +162,6 @@ names! {
     CHARSET, "charset";
     BOUNDARY, "boundary";
 }
-
-/// a `Value` usable for a charset parameter.
-///
-/// # Example
-/// ```
-/// let mime = mime::TEXT_PLAIN_UTF_8;
-/// assert_eq!(mime.get_param(mime::CHARSET), Some(mime::UTF_8));
-/// ```
-pub const UTF_8: Value = Value {
-    source: "utf-8",
-    ascii_case_insensitive: true,
-};
 
 macro_rules! mimes {
     ($(@ $kind:ident: $($id:ident, $($piece:expr),+;)+)+) => (
@@ -535,7 +521,7 @@ impl Atoms {
                             }
                         },
                         11 => {
-                            if sub == (Name { source: "dns-message" }) {
+                            if sub == Name::new("dns-message") {
                                 return Atoms::APPLICATION_DNS;
                             }
                         },

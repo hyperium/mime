@@ -46,9 +46,7 @@ impl MediaType {
     /// ```
     #[inline]
     pub fn type_(&self) -> Name {
-        Name {
-            source: self.mime.type_(),
-        }
+        Name::new(self.mime.type_())
     }
 
     /// Get the subtype of this `MediaType`.
@@ -62,9 +60,7 @@ impl MediaType {
     /// ```
     #[inline]
     pub fn subtype(&self) -> Name {
-        Name {
-            source: self.mime.subtype(),
-        }
+        Name::new(self.mime.subtype())
     }
 
     /// Get an optional +suffix for this `MediaType`.
@@ -81,7 +77,7 @@ impl MediaType {
     /// ```
     #[inline]
     pub fn suffix(&self) -> Option<Name> {
-        self.mime.suffix().map(|source| Name { source })
+        self.mime.suffix().map(Name::new)
     }
 
     /// Look up a parameter by name.
@@ -90,14 +86,14 @@ impl MediaType {
     ///
     /// ```
     /// let mime = mime::TEXT_PLAIN_UTF_8;
-    /// assert_eq!(mime.get_param(mime::CHARSET), Some(mime::UTF_8));
-    /// assert_eq!(mime.get_param("charset").unwrap(), "utf-8");
-    /// assert!(mime.get_param("boundary").is_none());
+    /// assert_eq!(mime.param(mime::CHARSET), Some(mime::UTF_8));
+    /// assert_eq!(mime.param("charset").unwrap(), "utf-8");
+    /// assert!(mime.param("boundary").is_none());
     ///
     /// let mime = "multipart/form-data; boundary=ABCDEFG".parse::<mime::MediaType>().unwrap();
-    /// assert_eq!(mime.get_param(mime::BOUNDARY).unwrap(), "ABCDEFG");
+    /// assert_eq!(mime.param(mime::BOUNDARY).unwrap(), "ABCDEFG");
     /// ```
-    pub fn get_param<'a, N>(&'a self, attr: N) -> Option<Value<'a>>
+    pub fn param<'a, N>(&'a self, attr: N) -> Option<Value<'a>>
     where
         N: PartialEq<Name<'a>>,
     {
@@ -129,13 +125,9 @@ impl MediaType {
     #[inline]
     pub fn params(&self) -> impl Iterator<Item = (Name, Value)> {
         self.mime.params().map(|(n, v)| {
-            (
-                Name { source: n },
-                Value {
-                    source: v,
-                    ascii_case_insensitive: n == crate::CHARSET,
-                },
-            )
+            let name = Name::new(n);
+            let value = Value::new(v).for_name(name);
+            (name, value)
         })
     }
 
@@ -344,8 +336,8 @@ mod tests {
 
         let extended = MediaType::parse("TEXT/PLAIN; CHARSET=UTF-8; FOO=BAR").unwrap();
         assert_eq!(extended, "text/plain; charset=utf-8; foo=BAR");
-        assert_eq!(extended.get_param("charset").unwrap(), "utf-8");
-        assert_eq!(extended.get_param("foo").unwrap(), "BAR");
+        assert_eq!(extended.param("charset").unwrap(), "utf-8");
+        assert_eq!(extended.param("foo").unwrap(), "BAR");
 
         MediaType::parse("multipart/form-data; boundary=--------foobar").unwrap();
 
@@ -362,33 +354,33 @@ mod tests {
     #[test]
     fn test_case_sensitive_values() {
         let mime = MediaType::parse("multipart/form-data; charset=BASE64; boundary=ABCDEFG").unwrap();
-        assert_eq!(mime.get_param(CHARSET).unwrap(), "bAsE64");
-        assert_eq!(mime.get_param(BOUNDARY).unwrap(), "ABCDEFG");
-        assert_ne!(mime.get_param(BOUNDARY).unwrap(), "abcdefg");
+        assert_eq!(mime.param(CHARSET).unwrap(), "bAsE64");
+        assert_eq!(mime.param(BOUNDARY).unwrap(), "ABCDEFG");
+        assert_ne!(mime.param(BOUNDARY).unwrap(), "abcdefg");
     }
 
     #[test]
     fn test_get_param() {
-        assert_eq!(TEXT_PLAIN.get_param("charset"), None);
-        assert_eq!(TEXT_PLAIN.get_param("baz"), None);
+        assert_eq!(TEXT_PLAIN.param("charset"), None);
+        assert_eq!(TEXT_PLAIN.param("baz"), None);
 
-        assert_eq!(TEXT_PLAIN_UTF_8.get_param("charset"), Some(UTF_8));
-        assert_eq!(TEXT_PLAIN_UTF_8.get_param("baz"), None);
+        assert_eq!(TEXT_PLAIN_UTF_8.param("charset"), Some(UTF_8));
+        assert_eq!(TEXT_PLAIN_UTF_8.param("baz"), None);
 
         let mime = MediaType::parse("text/plain; charset=utf-8; foo=bar").unwrap();
-        assert_eq!(mime.get_param(CHARSET).unwrap(), "utf-8");
-        assert_eq!(mime.get_param("foo").unwrap(), "bar");
-        assert_eq!(mime.get_param("baz"), None);
+        assert_eq!(mime.param(CHARSET).unwrap(), "utf-8");
+        assert_eq!(mime.param("foo").unwrap(), "bar");
+        assert_eq!(mime.param("baz"), None);
 
 
         let mime = MediaType::parse("text/plain;charset=\"utf-8\"").unwrap();
-        assert_eq!(mime.get_param(CHARSET), Some(UTF_8));
+        assert_eq!(mime.param(CHARSET), Some(UTF_8));
     }
 
     #[test]
     fn test_mime_with_dquote_quoted_pair() {
         let mime = MediaType::parse(r#"application/x-custom; title="the \" char""#).unwrap();
-        assert_eq!(mime.get_param("title").unwrap(), "the \" char");
+        assert_eq!(mime.param("title").unwrap(), "the \" char");
     }
 
     #[test]
@@ -421,31 +413,9 @@ mod tests {
     }
 
     #[test]
-    fn test_name_eq() {
-        assert_eq!(TEXT, TEXT);
-        assert_eq!(TEXT, "text");
-        assert_eq!("text", TEXT);
-        assert_eq!(TEXT, "TEXT");
-    }
-
-    #[test]
-    fn test_value_eq() {
-        let param = Value {
-            source: "ABC",
-            ascii_case_insensitive: false,
-        };
-
-        assert_eq!(param, param);
-        assert_eq!(param, "ABC");
-        assert_eq!("ABC", param);
-        assert_ne!(param, "abc");
-        assert_ne!("abc", param);
-    }
-
-    #[test]
     fn test_mime_with_utf8_values() {
         let mime = MediaType::parse(r#"application/x-custom; param="Straße""#).unwrap();
-        assert_eq!(mime.get_param("param").unwrap(), "Straße");
+        assert_eq!(mime.param("param").unwrap(), "Straße");
     }
 
     #[test]
@@ -459,19 +429,19 @@ mod tests {
     #[test]
     fn test_mime_param_with_empty_quoted_string() {
         let mime = MediaType::parse(r#"application/x-custom;param="""#).unwrap();
-        assert_eq!(mime.get_param("param").unwrap(), "");
+        assert_eq!(mime.param("param").unwrap(), "");
     }
 
     #[test]
     fn test_mime_param_with_tab() {
         let mime = MediaType::parse("application/x-custom;param=\"\t\"").unwrap();
-        assert_eq!(mime.get_param("param").unwrap(), "\t");
+        assert_eq!(mime.param("param").unwrap(), "\t");
     }
 
     #[test]
     fn test_mime_param_with_quoted_tab() {
         let mime = MediaType::parse("application/x-custom;param=\"\\\t\"").unwrap();
-        assert_eq!(mime.get_param("param").unwrap(), "\t");
+        assert_eq!(mime.param("param").unwrap(), "\t");
     }
 
     #[test]
@@ -546,7 +516,7 @@ mod tests {
         assert_eq!(utf8.type_(), TEXT);
         assert_eq!(utf8.subtype(), PLAIN);
         assert_eq!(utf8.suffix(), None);
-        assert_eq!(utf8.get_param(CHARSET), Some(UTF_8));
+        assert_eq!(utf8.param(CHARSET), Some(UTF_8));
         assert_eq!(utf8, TEXT_PLAIN_UTF_8);
     }
 
@@ -558,7 +528,7 @@ mod tests {
         assert_eq!(mt.type_(), MULTIPART);
         assert_eq!(mt.subtype(), FORM_DATA);
         assert_eq!(mt.suffix(), None);
-        assert_eq!(mt.get_param("boundary").unwrap(), "1234");
+        assert_eq!(mt.param("boundary").unwrap(), "1234");
     }
     */
 }
