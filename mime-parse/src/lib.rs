@@ -1,9 +1,48 @@
+use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::error::Error;
-use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::{fmt, slice};
 use std::iter::Enumerate;
 use std::str::Bytes;
 
-use super::{Mime, ParamSource, Source, Indexed, CHARSET, UTF_8};
+#[derive(Clone)]
+pub struct Mime {
+    pub source: Source,
+    pub slash: usize,
+    pub plus: Option<usize>,
+    pub params: ParamSource,
+}
+
+#[derive(Clone)]
+pub enum Source {
+    Atom(&'static str),
+    Dynamic(String),
+}
+
+impl AsRef<str> for Source {
+    fn as_ref(&self) -> &str {
+        match *self {
+            Source::Atom(s) => s,
+            Source::Dynamic(ref s) => s,
+        }
+    }
+}
+
+type IndexedPair = (Indexed, Indexed);
+
+#[derive(Clone)]
+pub enum ParamSource {
+    None,
+    Utf8(usize),
+    One(usize, IndexedPair),
+    Two(usize, IndexedPair, IndexedPair),
+    Three(usize, IndexedPair, IndexedPair, IndexedPair),
+    Custom(usize, Vec<IndexedPair>),
+}
+
+#[derive(Clone, Copy)]
+pub struct Indexed(usize, usize);
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -19,14 +58,12 @@ pub enum ParseError {
 
 impl Error for ParseError {
     fn description(&self) -> &str {
-        use self::ParseError::*;
-
-        match *self {
-            MissingSlash => "a slash (/) was missing between the type and subtype",
-            MissingEqual => "an equals sign (=) was missing between a parameter and its value",
-            MissingQuote => "a quote (\") was missing from a parameter value",
-            InvalidToken { .. } => "an invalid token was encountered",
-            InvalidRange => "unexpected asterisk",
+        match self {
+            ParseError::MissingSlash => "a slash (/) was missing between the type and subtype",
+            ParseError::MissingEqual => "an equals sign (=) was missing between a parameter and its value",
+            ParseError::MissingQuote => "a quote (\") was missing from a parameter value",
+            ParseError::InvalidToken { .. } => "invalid token",
+            ParseError::InvalidRange => "unexpected asterisk",
         }
     }
 }
@@ -41,16 +78,188 @@ impl fmt::Display for ParseError {
     }
 }
 
+// ===== impl Mime =====
+
+impl Mime {
+    #[inline]
+    pub fn type_(&self) -> &str {
+        &self.source.as_ref()[..self.slash]
+    }
+
+    #[inline]
+    pub fn subtype(&self) -> &str {
+        let end = self.plus.unwrap_or_else(|| {
+            self.semicolon().unwrap_or_else(|| self.source.as_ref().len())
+        });
+        &self.source.as_ref()[self.slash + 1..end]
+    }
+
+    #[inline]
+    pub fn suffix(&self) -> Option<&str> {
+        let end = self.semicolon().unwrap_or_else(|| self.source.as_ref().len());
+        self.plus.map(|idx| &self.source.as_ref()[idx + 1..end])
+    }
+
+    #[inline]
+    pub fn params(&self) -> Params {
+        let inner = match self.params {
+            ParamSource::Utf8(_) => ParamsInner::Utf8,
+            ParamSource::One(_, a) => ParamsInner::Inlined(&self.source, Inline::One(a)),
+            ParamSource::Two(_, a, b) => ParamsInner::Inlined(&self.source, Inline::Two(a, b)),
+            ParamSource::Three(_, a, b, c) => ParamsInner::Inlined(&self.source, Inline::Three(a, b, c)),
+            ParamSource::Custom(_, ref params) => {
+                ParamsInner::Custom {
+                    source: &self.source,
+                    params: params.iter(),
+                }
+            }
+            ParamSource::None => ParamsInner::None,
+        };
+
+        Params(inner)
+    }
+
+    #[inline]
+    pub fn has_params(&self) -> bool {
+        self.semicolon().is_some()
+    }
+
+    #[inline]
+    fn semicolon(&self) -> Option<usize> {
+        match self.params {
+            ParamSource::Utf8(i) |
+            ParamSource::One(i, ..) |
+            ParamSource::Two(i, ..) |
+            ParamSource::Three(i, ..) |
+            ParamSource::Custom(i, _) => Some(i),
+            ParamSource::None => None,
+        }
+    }
+
+    fn eq_of_params(&self, other: &Mime) -> bool {
+        use self::FastEqRes::*;
+        // if ParamInner is None or Utf8 we can determine equality faster
+        match self.params().fast_eq(&other.params()) {
+            Equals => return true,
+            NotEquals => return false,
+            Undetermined => {},
+        }
+
+        // OPTIMIZE: some on-stack structure might be better suited as most
+        // media types do not have many parameters
+        let my_params = self.params().collect::<HashMap<_,_>>();
+        let other_params = self.params().collect::<HashMap<_,_>>();
+        my_params == other_params
+    }
+
+    pub fn eq_str<F>(&self, s: &str, intern: F) -> bool
+    where
+        F: Fn(&str, usize) -> Source,
+    {
+        if let ParamSource::Utf8(..) = self.params {
+            // this only works because ParamSource::Utf8 is only used if
+            // its "<type>/<subtype>; charset=utf-8" them moment spaces are
+            // set differently or charset is quoted or is utf8 it will not
+            // use ParamSource::Utf8
+            if self.source.as_ref().len() == s.len() {
+                self.source.as_ref().eq_ignore_ascii_case(s)
+            } else {
+                //OPTIMIZE: once the parser is rewritten and more modular
+                // we can use parts of the parser to parse the string without
+                // actually crating a mime, and use that for comparision
+                //
+                parse(s, CanRange::Yes, intern)
+                    .map(|other_mime| {
+                        self == &other_mime
+                    })
+                    .unwrap_or(false)
+            }
+        } else if self.has_params() {
+            parse(s, CanRange::Yes, intern)
+                .map(|other_mime| {
+                    self == &other_mime
+                })
+                .unwrap_or(false)
+        } else {
+            self.source.as_ref().eq_ignore_ascii_case(s)
+        }
+    }
+}
+
+impl PartialEq for Mime {
+    #[inline]
+    fn eq(&self, other: &Mime) -> bool {
+        match (&self.source, &other.source) {
+            (&Source::Atom(a), &Source::Atom(b)) => a == b,
+            _ => {
+                self.type_() == other.type_()  &&
+                    self.subtype() == other.subtype() &&
+                    self.suffix() == other.suffix() &&
+                    self.eq_of_params(other)
+            },
+        }
+    }
+}
+
+impl Eq for Mime {}
+
+impl PartialOrd for Mime {
+    fn partial_cmp(&self, other: &Mime) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Mime {
+    fn cmp(&self, other: &Mime) -> Ordering {
+        self.source.as_ref().cmp(other.source.as_ref())
+    }
+}
+
+impl Hash for Mime {
+    fn hash<T: Hasher>(&self, hasher: &mut T) {
+        hasher.write(self.source.as_ref().as_bytes());
+    }
+}
+
+impl AsRef<str> for Mime {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.source.as_ref()
+    }
+}
+
+impl fmt::Debug for Mime {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self.source.as_ref(), f)
+    }
+}
+
+impl fmt::Display for Mime {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self.source.as_ref(), f)
+    }
+}
+
 #[derive(PartialEq)]
-pub(super) enum CanRange {
+pub enum CanRange {
     Yes,
     No,
 }
 
-pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
+pub fn parse<F>(s: &str, can_range: CanRange, intern: F) -> Result<Mime, ParseError>
+where
+    F: Fn(&str, usize) -> Source,
+{
     if s == "*/*" {
         return match can_range {
-            CanRange::Yes => Ok(crate::MIME_STAR_STAR),
+            CanRange::Yes => Ok(Mime {
+                source: Source::Atom("*/*"),
+                slash: 1,
+                plus: None,
+                params: ParamSource::None,
+            }),
             CanRange::No => Err(ParseError::InvalidRange),
         };
     }
@@ -96,7 +305,7 @@ pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
                         break;
                     },
                     None => return Ok(Mime {
-                        source: Source::intern(s, slash),
+                        source: intern(s, slash),
                         slash,
                         plus,
                         params: ParamSource::None,
@@ -111,7 +320,7 @@ pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
             Some((_, c)) if is_token(c) => (),
             None => {
                 return Ok(Mime {
-                    source: Source::intern(s, slash),
+                    source: intern(s, slash),
                     slash,
                     plus,
                     params: ParamSource::None,
@@ -128,9 +337,12 @@ pub(super) fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
     let params = params_from_str(s, &mut iter, start)?;
 
     let source = match params {
-        ParamSource::None => Source::intern(s, slash),
+        ParamSource::None => intern(s, slash),
         // TODO: update intern to handle these
         ParamSource::Utf8(_) => Source::Dynamic(s.to_ascii_lowercase()),
+        ParamSource::One(semicolon, a) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a])),
+        ParamSource::Two(semicolon, a, b) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a, b])),
+        ParamSource::Three(semicolon, a, b, c) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a, b, c])),
         ParamSource::Custom(semicolon, ref indices) => Source::Dynamic(lower_ascii_with_params(s, semicolon, indices)),
     };
 
@@ -255,21 +467,27 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 let i = i + 2;
                 let charset = Indexed(i, "charset".len() + i);
                 let utf8 = Indexed(charset.1 + 1, charset.1 + "utf-8".len() + 1);
-                params = ParamSource::Custom(semicolon, vec![
-                    (charset, utf8),
-                    (name, value),
-                ]);
+                params = ParamSource::Two(semicolon, (charset, utf8), (name, value));
+            },
+            ParamSource::One(sc, a) => {
+                params = ParamSource::Two(sc, a, (name, value));
+            },
+            ParamSource::Two(sc, a, b) => {
+                params = ParamSource::Three(sc, a, b, (name, value));
+            },
+            ParamSource::Three(sc, a, b, c) => {
+                params = ParamSource::Custom(sc, vec![a, b, c, (name, value)]);
             },
             ParamSource::Custom(_, ref mut vec) => {
                 vec.push((name, value));
             },
             ParamSource::None => {
-                if semicolon + 2 == name.0 && CHARSET == s[name.0..name.1] &&
-                    UTF_8 == s[value.0..value.1] {
+                if semicolon + 2 == name.0 && "charset".eq_ignore_ascii_case(&s[name.0..name.1]) &&
+                    "utf-8".eq_ignore_ascii_case(&s[value.0..value.1]) {
                     params = ParamSource::Utf8(semicolon);
                     continue 'params;
                 }
-                params = ParamSource::Custom(semicolon, vec![(name, value)]);
+                params = ParamSource::One(semicolon, (name, value));
             },
         }
     }
@@ -285,7 +503,7 @@ fn lower_ascii_with_params(s: &str, semi: usize, params: &[(Indexed, Indexed)]) 
         // Since we just converted this part of the string to lowercase,
         // we can skip the `Name == &str` unicase check and do a faster
         // memcmp instead.
-        if &owned[name.0..name.1] == CHARSET.as_str() {
+        if &owned[name.0..name.1] == "charset" {
             owned[value.0..value.1].make_ascii_lowercase();
         }
     }
@@ -388,5 +606,115 @@ fn test_lookup_tables() {
             _ => false
         };
         assert_eq!(valid, should, "{:?} ({}) should be {}", i as char, i, should);
+    }
+}
+
+// Params ===================
+
+
+enum ParamsInner<'a> {
+    Utf8,
+    Inlined(&'a Source, Inline),
+    Custom {
+        source: &'a Source,
+        params: slice::Iter<'a, IndexedPair>,
+    },
+    None,
+}
+
+
+enum Inline {
+    Done,
+    One(IndexedPair),
+    Two(IndexedPair, IndexedPair),
+    Three(IndexedPair, IndexedPair, IndexedPair),
+}
+
+enum FastEqRes {
+    Equals,
+    NotEquals,
+    Undetermined
+}
+
+/// An iterator over the parameters of a MIME.
+pub struct Params<'a>(ParamsInner<'a>);
+
+impl<'a> fmt::Debug for Params<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Params").finish()
+    }
+}
+
+impl<'a> Params<'a> {
+    fn fast_eq<'b>(&self, other: &Params<'b>) -> FastEqRes {
+        match (&self.0, &other.0) {
+            (&ParamsInner::None, &ParamsInner::None) |
+            (&ParamsInner::Utf8, &ParamsInner::Utf8) => FastEqRes::Equals,
+
+            (&ParamsInner::None, _) |
+            (_, &ParamsInner::None)  => FastEqRes::NotEquals,
+
+            _ => FastEqRes::Undetermined,
+        }
+    }
+}
+
+impl<'a> Iterator for Params<'a> {
+    type Item = (&'a str, &'a str);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.0 {
+            ParamsInner::Utf8 => {
+                let value = ("charset", "utf-8");
+                self.0 = ParamsInner::None;
+                Some(value)
+            },
+            ParamsInner::Inlined(source, ref mut inline) => {
+                let next = match *inline {
+                    Inline::Done => {
+                        None
+                    }
+                    Inline::One(one) => {
+                        *inline = Inline::Done;
+                        Some(one)
+                    },
+                    Inline::Two(one, two) => {
+                        *inline = Inline::One(two);
+                        Some(one)
+                    },
+                    Inline::Three(one, two, three) => {
+                        *inline = Inline::Two(two, three);
+                        Some(one)
+                    },
+                };
+                next.map(|(name, value)| {
+                    let name = &source.as_ref()[name.0..name.1];
+                    let value = &source.as_ref()[value.0..value.1];
+                    (name, value)
+                })
+            },
+            ParamsInner::Custom { source, ref mut params } => {
+                params.next().map(|&(name, value)| {
+                    let name = &source.as_ref()[name.0..name.1];
+                    let value = &source.as_ref()[value.0..value.1];
+                    (name, value)
+                })
+            },
+            ParamsInner::None => None,
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self.0 {
+            ParamsInner::Utf8 => (1, Some(1)),
+            ParamsInner::Inlined(_, Inline::Done) => (0, Some(0)),
+            ParamsInner::Inlined(_, Inline::One(..)) => (1, Some(1)),
+            ParamsInner::Inlined(_, Inline::Two(..)) => (2, Some(2)),
+            ParamsInner::Inlined(_, Inline::Three(..)) => (3, Some(3)),
+            ParamsInner::Custom { ref params, .. } => params.size_hint(),
+            ParamsInner::None => (0, Some(0)),
+        }
     }
 }

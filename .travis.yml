@@ -8,6 +8,8 @@ matrix:
         - rust: stable
         - rust: beta
         - rust: nightly
-        - rust: 1.23.0
+        - rust: 1.31.0
 
+        - rust: stable
+          script: cargo test --features macro
 

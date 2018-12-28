@@ -24,6 +24,15 @@ fn bench_eq_consts(b: &mut Bencher) {
     });
 }
 
+#[cfg(feature = "macro")]
+#[bench]
+fn bench_eq_proc_macro(b: &mut Bencher) {
+    let mime = media_type!("text/plain; charset=utf-8");
+    b.bytes = mime.as_ref().len() as u64;
+    b.iter(|| {
+        assert_eq!(mime, TEXT_PLAIN_UTF_8);
+    });
+}
 
 #[bench]
 fn bench_ne_consts(b: &mut Bencher) {

@@ -14,3 +14,16 @@ publish = false # breaking changes from 0.3.x
 
 [dependencies]
 quoted-string = "0.2.2"
+mime-macro = { path = "./mime-macro", optional = true }
+mime-parse = { path = "./mime-parse" }
+proc-macro-hack = { version = "0.5", optional = true }
+
+[features]
+macro = ["mime-macro", "proc-macro-hack"]
+
+[workspace]
+members = [
+    "./",
+    "mime-macro",
+    "mime-parse",
+]

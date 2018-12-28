@@ -1,0 +1,9 @@
+[package]
+
+name = "mime-parse"
+version = "0.0.0"
+description = "mime parsing internals"
+repository = "https://github.com/hyperium/mime"
+authors = ["Sean McArthur <sean@seanmonstar.com>"]
+license = "MIT"
+edition = "2018"

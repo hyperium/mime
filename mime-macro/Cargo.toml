@@ -1,0 +1,20 @@
+[package]
+
+name = "mime-macro"
+version = "0.0.0"
+description = "mime procedural macros"
+repository = "https://github.com/hyperium/mime"
+authors = ["Sean McArthur <sean@seanmonstar.com>"]
+license = "MIT"
+edition = "2018"
+
+[lib]
+name = "mime_macro"
+proc-macro = true
+
+[dependencies]
+mime-parse = { path = "../mime-parse" }
+proc-macro2 = "0.4"
+proc-macro-hack = "0.5"
+quote = "0.6"
+syn = "0.15"

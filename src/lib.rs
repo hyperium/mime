@@ -10,7 +10,7 @@
 //! Example mime string: `text/plain`
 //!
 //! ```
-//! let plain_text: mime::MediaType = "text/plain".parse().unwrap();
+//! let plain_text = mime::media_type!("text/plain");
 //! assert_eq!(plain_text, mime::TEXT_PLAIN);
 //! ```
 //!
@@ -34,21 +34,23 @@
 //! ```
 
 
-extern crate quoted_string;
-
-use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-use std::hash::{Hash, Hasher};
 use std::str::FromStr;
-use std::slice;
+
+use mime_parse::{Mime, Source, ParamSource};
+
+#[cfg(feature = "macro")]
+use proc_macro_hack::proc_macro_hack;
+
+#[cfg(feature = "macro")]
+#[proc_macro_hack]
+pub use mime_macro::media_type;
 
 pub use self::name::Name;
 pub use self::value::Value;
 
 mod name;
-mod parse;
 mod value;
 
 /// A parsed MIME or media type.
@@ -63,18 +65,10 @@ pub struct MediaRange {
     mime: Mime,
 }
 
-#[derive(Clone)]
-struct Mime {
-    source: Source,
-    slash: usize,
-    plus: Option<usize>,
-    params: ParamSource,
-}
-
 /// An invalid `MediaType` or `MediaRange`.
 #[derive(Debug)]
 pub struct InvalidMime {
-    inner: parse::ParseError,
+    inner: mime_parse::ParseError,
 }
 
 impl Error for InvalidMime {
@@ -88,31 +82,6 @@ impl fmt::Display for InvalidMime {
         write!(f, "{}: {}", self.description(), self.inner)
     }
 }
-
-#[derive(Clone)]
-enum Source {
-    Atom(u8, &'static str),
-    Dynamic(String),
-}
-
-impl Source {
-    fn as_ref(&self) -> &str {
-        match *self {
-            Source::Atom(_, s) => s,
-            Source::Dynamic(ref s) => s,
-        }
-    }
-}
-
-#[derive(Clone)]
-enum ParamSource {
-    Utf8(usize),
-    Custom(usize, Vec<(Indexed, Indexed)>),
-    None,
-}
-
-#[derive(Clone, Copy)]
-struct Indexed(usize, usize);
 
 // ==== impl MediaType =====
 
@@ -128,7 +97,9 @@ impl MediaType {
     /// ```
     #[inline]
     pub fn type_(&self) -> Name {
-        self.mime.type_()
+        Name {
+            source: self.mime.type_(),
+        }
     }
 
     /// Get the subtype of this `MediaType`.
@@ -142,7 +113,9 @@ impl MediaType {
     /// ```
     #[inline]
     pub fn subtype(&self) -> Name {
-        self.mime.subtype()
+        Name {
+            source: self.mime.subtype(),
+        }
     }
 
     /// Get an optional +suffix for this `MediaType`.
@@ -159,7 +132,7 @@ impl MediaType {
     /// ```
     #[inline]
     pub fn suffix(&self) -> Option<Name> {
-        self.mime.suffix()
+        self.mime.suffix().map(|source| Name { source })
     }
 
     /// Look up a parameter by name.
@@ -179,7 +152,7 @@ impl MediaType {
     where
         N: PartialEq<Name<'a>>,
     {
-        self.mime.get_param(attr)
+        self.params().find(|e| attr == e.0).map(|e| e.1)
     }
 
     /// Returns an iterator over the parameters.
@@ -196,8 +169,16 @@ impl MediaType {
     /// assert_eq!(values, &["enveloped-data", "smime.p7m"]);
     /// ```
     #[inline]
-    pub fn params(&self) -> Params {
-        self.mime.params()
+    pub fn params(&self) -> impl Iterator<Item = (Name, Value)> {
+        self.mime.params().map(|(n, v)| {
+            (
+                Name { source: n },
+                Value {
+                    source: v,
+                    ascii_case_insensitive: n == CHARSET,
+                },
+            )
+        })
     }
 
     /// Returns true if the media type has at last one parameter.
@@ -216,6 +197,72 @@ impl MediaType {
         self.mime.has_params()
     }
 
+    /// **DO NOT CALL THIS FUNCTION.**
+    ///
+    /// This function has no backwards-compatibility guarantees. It can and
+    /// *will* change, and your code *will* break.
+    ///
+    /// # Tests
+    ///
+    /// ```
+    /// let foo = mime::media_type!("text/foo");
+    /// assert_eq!(foo.type_(), mime::TEXT);
+    /// assert_eq!(foo.subtype(), "foo");
+    /// assert_eq!(foo.suffix(), None);
+    /// assert!(!foo.has_params());
+    /// ```
+    ///
+    /// # Uppercase
+    ///
+    /// ```compile_fail
+    /// mime::media_type!("TEXT/PLAIN");
+    /// ```
+    ///
+    /// # Parameters
+    ///
+    /// ```compile_fail
+    /// mime::media_type!("multipart/form-data; boundary=abcd");
+    /// ```
+    ///
+    /// # Ranges
+    ///
+    /// ```compile_fail
+    /// mime::media_type!("text/*");
+    /// ```
+    ///
+    /// # String literal
+    ///
+    /// ```compile_fail
+    /// mime::media_type!(text/foo);
+    /// ```
+    ///
+    /// ```compile_fail
+    /// mime::media_type!("text/foo", "+json");
+    /// ```
+    ///
+    /// # Dynamic Formatting
+    ///
+    /// ```compile_fail
+    /// mime::media_type!("text/foo+{}", "json");
+    /// ```
+    #[doc(hidden)]
+    #[cfg(feature = "macro")]
+    pub const unsafe fn private_from_proc_macro(
+        source: &'static str,
+        slash: usize,
+        plus: Option<usize>,
+        params: ParamSource,
+    ) -> Self {
+        MediaType {
+            mime: Mime {
+                source: Source::Atom(source),
+                slash,
+                plus,
+                params,
+            }
+        }
+    }
+
     #[cfg(test)]
     fn test_assert_asterisks(&self) {
         assert!(!self.as_ref().contains('*'), "{:?} contains an asterisk", self);
@@ -224,28 +271,28 @@ impl MediaType {
 
 impl PartialEq<str> for MediaType {
     fn eq(&self, s: &str) -> bool {
-        self.mime == s
+        self.mime.eq_str(s, Atoms::intern)
     }
 }
 
 impl<'a> PartialEq<&'a str> for MediaType {
     #[inline]
     fn eq(&self, s: & &'a str) -> bool {
-        self.mime == *s
+        self == *s
     }
 }
 
 impl<'a> PartialEq<MediaType> for &'a str {
     #[inline]
     fn eq(&self, mt: &MediaType) -> bool {
-        mt.mime == *self
+        mt == self
     }
 }
 
 impl PartialEq<MediaType> for str {
     #[inline]
     fn eq(&self, mt: &MediaType) -> bool {
-        mt.mime == self
+        mt == self
     }
 }
 
@@ -253,7 +300,7 @@ impl FromStr for MediaType {
     type Err = InvalidMime;
 
     fn from_str(s: &str) -> Result<MediaType, Self::Err> {
-        parse::parse(s, parse::CanRange::No)
+        mime_parse::parse(s, mime_parse::CanRange::No, Atoms::intern)
             .map(|mime| MediaType { mime })
             .map_err(|e| InvalidMime { inner: e })
     }
@@ -294,7 +341,9 @@ impl MediaRange {
     /// ```
     #[inline]
     pub fn type_(&self) -> Name {
-        self.mime.type_()
+        Name {
+            source: self.mime.type_(),
+        }
     }
 
     /// Get the subtype of this `MediaRange`.
@@ -315,7 +364,9 @@ impl MediaRange {
     /// ```
     #[inline]
     pub fn subtype(&self) -> Name {
-        self.mime.subtype()
+        Name {
+            source: self.mime.subtype(),
+        }
     }
 
     /// Get an optional +suffix for this `MediaRange`.
@@ -339,7 +390,8 @@ impl MediaRange {
     /// ```
     #[inline]
     pub fn suffix(&self) -> Option<Name> {
-        self.mime.suffix()
+        self.mime.suffix().map(|source| Name { source })
+
     }
 
     /// Checks if this `MediaRange` matches a specific `MediaType`.
@@ -403,7 +455,7 @@ impl MediaRange {
     where
         N: PartialEq<Name<'a>>,
     {
-        self.mime.get_param(attr)
+        self.params().find(|e| attr == e.0).map(|e| e.1)
     }
 
     /// Returns an iterator over the parameters.
@@ -420,8 +472,16 @@ impl MediaRange {
     /// assert_eq!(values, &["enveloped-data", "smime.p7m"]);
     /// ```
     #[inline]
-    pub fn params(&self) -> Params {
-        self.mime.params()
+    pub fn params(&self) -> impl Iterator<Item = (Name, Value)> {
+        self.mime.params().map(|(n, v)| {
+            (
+                Name { source: n },
+                Value {
+                    source: v,
+                    ascii_case_insensitive: n == CHARSET,
+                },
+            )
+        })
     }
 
     /// Returns true if the media type has at last one parameter.
@@ -456,28 +516,28 @@ impl From<MediaType> for MediaRange {
 
 impl PartialEq<str> for MediaRange {
     fn eq(&self, s: &str) -> bool {
-        self.mime == s
+        self.mime.eq_str(s, Atoms::intern)
     }
 }
 
 impl<'a> PartialEq<&'a str> for MediaRange {
     #[inline]
     fn eq(&self, s: & &'a str) -> bool {
-        self.mime == *s
+        self == *s
     }
 }
 
 impl<'a> PartialEq<MediaRange> for &'a str {
     #[inline]
-    fn eq(&self, mt: &MediaRange) -> bool {
-        mt.mime == *self
+    fn eq(&self, mr: &MediaRange) -> bool {
+        mr == self
     }
 }
 
 impl PartialEq<MediaRange> for str {
     #[inline]
-    fn eq(&self, mt: &MediaRange) -> bool {
-        mt.mime == self
+    fn eq(&self, mr: &MediaRange) -> bool {
+        mr == self
     }
 }
 
@@ -485,7 +545,7 @@ impl FromStr for MediaRange {
     type Err = InvalidMime;
 
     fn from_str(s: &str) -> Result<MediaRange, Self::Err> {
-        parse::parse(s, parse::CanRange::Yes)
+        mime_parse::parse(s, mime_parse::CanRange::Yes, Atoms::intern)
             .map(|mime| MediaRange { mime })
             .map_err(|e| InvalidMime { inner: e })
     }
@@ -511,282 +571,16 @@ impl fmt::Display for MediaRange {
     }
 }
 
-// ===== impl Mime =====
-
-impl Mime {
-    fn type_(&self) -> Name {
-        Name {
-            source: &self.source.as_ref()[..self.slash],
-        }
-    }
-
-    fn subtype(&self) -> Name {
-        let end = self.plus.unwrap_or_else(|| {
-            self.semicolon().unwrap_or_else(|| self.source.as_ref().len())
-        });
-        Name {
-            source: &self.source.as_ref()[self.slash + 1..end],
-        }
-    }
-
-    fn suffix(&self) -> Option<Name> {
-        let end = self.semicolon().unwrap_or_else(|| self.source.as_ref().len());
-        self.plus.map(|idx| Name {
-            source: &self.source.as_ref()[idx + 1..end],
-        })
-    }
-
-    fn get_param<'a, N>(&'a self, attr: N) -> Option<Value<'a>>
-    where
-        N: PartialEq<Name<'a>>,
-    {
-        self.params().find(|e| attr == e.0).map(|e| e.1)
-    }
-
-    fn params(&self) -> Params {
-        let inner = match self.params {
-            ParamSource::Utf8(_) => ParamsInner::Utf8,
-            ParamSource::Custom(_, ref params) => {
-                ParamsInner::Custom {
-                    source: &self.source,
-                    params: params.iter(),
-                }
-            }
-            ParamSource::None => ParamsInner::None,
-        };
-
-        Params(inner)
-    }
-
-    fn has_params(&self) -> bool {
-        self.semicolon().is_some()
-    }
-
-    #[inline]
-    fn semicolon(&self) -> Option<usize> {
-        match self.params {
-            ParamSource::Utf8(i) |
-            ParamSource::Custom(i, _) => Some(i),
-            ParamSource::None => None,
-        }
-    }
-
-    fn atom(&self) -> u8 {
-        match self.source {
-            Source::Atom(a, _) => a,
-            _ => 0,
-        }
-    }
-
-    fn eq_of_params(&self, other: &Mime) -> bool {
-        use self::FastEqRes::*;
-        // if ParamInner is None or Utf8 we can determine equality faster
-        match self.params().fast_eq(&other.params()) {
-            Equals => return true,
-            NotEquals => return false,
-            Undetermined => {},
-        }
-
-        // OPTIMIZE: some on-stack structure might be better suited as most
-        // media types do not have many parameters
-        let my_params = self.params().collect::<HashMap<_,_>>();
-        let other_params = self.params().collect::<HashMap<_,_>>();
-        my_params == other_params
-    }
+/// **DO NOT IMPORT THIS MODULE OR ITS TYPES.**
+///
+/// There is zero backwards-compatibility guarantee, your code *will* break.
+#[doc(hidden)]
+#[cfg(feature = "macro")]
+pub mod private {
+    #[doc(hidden)]
+    pub use mime_parse::ParamSource;
 }
 
-
-impl PartialEq for Mime {
-    #[inline]
-    fn eq(&self, other: &Mime) -> bool {
-        match (self.atom(), other.atom()) {
-            // TODO:
-            // This could optimize for when there are no customs parameters.
-            // Any parsed mime has already been lowercased, so if there aren't
-            // any parameters that are case sensistive, this can skip the
-            // unicase::eq_ascii, and just use a memcmp instead.
-            (0, _) |
-            (_, 0) => {
-                self.type_() == other.type_()  &&
-                    self.subtype() == other.subtype() &&
-                    self.suffix() == other.suffix() &&
-                    self.eq_of_params(other)
-            },
-            (a, b) => a == b,
-        }
-    }
-}
-
-impl Eq for Mime {}
-
-impl PartialOrd for Mime {
-    fn partial_cmp(&self, other: &Mime) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Mime {
-    fn cmp(&self, other: &Mime) -> Ordering {
-        self.source.as_ref().cmp(other.source.as_ref())
-    }
-}
-
-impl Hash for Mime {
-    fn hash<T: Hasher>(&self, hasher: &mut T) {
-        hasher.write(self.source.as_ref().as_bytes());
-    }
-}
-
-impl PartialEq<str> for Mime {
-    fn eq(&self, s: &str) -> bool {
-        if let ParamSource::Utf8(..) = self.params {
-            // this only works because ParamSource::Utf8 is only used if
-            // its "<type>/<subtype>; charset=utf-8" them moment spaces are
-            // set differently or charset is quoted or is utf8 it will not
-            // use ParamSource::Utf8
-            if self.source.as_ref().len() == s.len() {
-                self.source.as_ref().eq_ignore_ascii_case(s)
-            } else {
-                //OPTIMIZE: once the parser is rewritten and more modular
-                // we can use parts of the parser to parse the string without
-                // actually crating a mime, and use that for comparision
-                //
-                parse::parse(s, parse::CanRange::Yes)
-                    .map(|other_mime| {
-                        self == &other_mime
-                    })
-                    .unwrap_or(false)
-            }
-        } else if self.has_params() {
-            parse::parse(s, parse::CanRange::Yes)
-                .map(|other_mime| {
-                    self == &other_mime
-                })
-                .unwrap_or(false)
-        } else {
-            self.source.as_ref().eq_ignore_ascii_case(s)
-        }
-    }
-}
-
-impl<'a> PartialEq<&'a str> for Mime {
-    #[inline]
-    fn eq(&self, s: & &'a str) -> bool {
-        self == *s
-    }
-}
-
-impl<'a> PartialEq<Mime> for &'a str {
-    #[inline]
-    fn eq(&self, mime: &Mime) -> bool {
-        mime == self
-    }
-}
-
-impl PartialEq<Mime> for str {
-    #[inline]
-    fn eq(&self, mime: &Mime) -> bool {
-        mime == self
-    }
-}
-
-impl AsRef<str> for Mime {
-    #[inline]
-    fn as_ref(&self) -> &str {
-        self.source.as_ref()
-    }
-}
-
-impl fmt::Debug for Mime {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self.source.as_ref(), f)
-    }
-}
-
-impl fmt::Display for Mime {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self.source.as_ref(), f)
-    }
-}
-
-// Params ===================
-
-enum ParamsInner<'a> {
-    Utf8,
-    Custom {
-        source: &'a Source,
-        params: slice::Iter<'a, (Indexed, Indexed)>,
-    },
-    None,
-}
-
-enum FastEqRes {
-    Equals,
-    NotEquals,
-    Undetermined
-}
-
-/// An iterator over the parameters of a MIME.
-pub struct Params<'a>(ParamsInner<'a>);
-
-impl<'a> fmt::Debug for Params<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("Params").finish()
-    }
-}
-
-impl<'a> Params<'a> {
-    fn fast_eq<'b>(&self, other: &Params<'b>) -> FastEqRes {
-        match (&self.0, &other.0) {
-            (&ParamsInner::None, &ParamsInner::None) |
-            (&ParamsInner::Utf8, &ParamsInner::Utf8) => FastEqRes::Equals,
-
-            (&ParamsInner::None, _) |
-            (_, &ParamsInner::None)  => FastEqRes::NotEquals,
-
-            _ => FastEqRes::Undetermined,
-        }
-    }
-}
-
-impl<'a> Iterator for Params<'a> {
-    type Item = (Name<'a>, Value<'a>);
-
-    #[inline]
-    fn next(&mut self) -> Option<(Name<'a>, Value<'a>)> {
-        match self.0 {
-            ParamsInner::Utf8 => {
-                let value = (CHARSET, UTF_8);
-                self.0 = ParamsInner::None;
-                Some(value)
-            }
-            ParamsInner::Custom { source, ref mut params } => {
-                params.next().map(|&(name, value)| {
-                    let name = Name {
-                        source: &source.as_ref()[name.0..name.1],
-                    };
-                    let value = Value {
-                        source: &source.as_ref()[value.0..value.1],
-                        ascii_case_insensitive: name == CHARSET,
-                    };
-                    (name, value)
-                })
-            }
-            ParamsInner::None => None
-        }
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        match self.0 {
-            ParamsInner::Utf8 => (1, Some(1)),
-            ParamsInner::Custom { ref params, .. } => params.size_hint(),
-            ParamsInner::None => (0, Some(0)),
-        }
-    }
-}
 
 macro_rules! names {
     ($($id:ident, $e:expr;)*) => (
@@ -799,8 +593,6 @@ macro_rules! names {
 
         #[test]
         fn test_names_macro_consts() {
-            #[allow(deprecated,unused_imports)]
-            use std::ascii::AsciiExt;
             $(
             assert_eq!($id.source.to_ascii_lowercase(), $id.source);
             )*
@@ -875,16 +667,6 @@ pub static UTF_8: Value = Value { source: "utf-8", ascii_case_insensitive: true 
 
 macro_rules! mimes {
     ($(@ $kind:ident: $($id:ident, $($piece:expr),+;)+)+) => (
-        #[allow(non_camel_case_types)]
-        enum __Atoms {
-            __Dynamic,
-        $($(
-            $id,
-        )+)+
-        }
-
-        const MIME_STAR_STAR: Mime = STAR_STAR.mime;
-
         $($(
             mime_constant! {
                 $kind, $id, $($piece),+
@@ -894,19 +676,23 @@ macro_rules! mimes {
 
         #[test]
         fn test_mimes_macro_consts() {
-            let _ = [
             $($(
             mime_constant_test! {
                 $id, $($piece),*
             }
-            ,)+)+
-            ].iter().enumerate().map(|(pos, &atom)| {
-                // + 1 (__Dynamic)
-                assert_eq!(pos + 1, atom as usize, "atom {} in position {}", atom, pos + 1);
-            }).collect::<Vec<()>>();
+            )+)+
+
+
+            $($(
+            mime_constant_proc_macro_test! {
+                @$kind, $id, $($piece),*
+            }
+            )+)+
         }
     )
 }
+
+struct Atoms;
 
 macro_rules! mime_constant {
     ($kind:ident, $id:ident, $src:expr, $slash:expr) => (
@@ -923,8 +709,8 @@ macro_rules! mime_constant {
 
     (FULL $kind:ident, $id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => (
 
-        impl Source {
-            const $id: Source = Source::Atom(__Atoms::$id as u8, $src);
+        impl Atoms {
+            const $id: Source = Source::Atom($src);
         }
 
         #[doc = "`"]
@@ -932,7 +718,7 @@ macro_rules! mime_constant {
         #[doc = "`"]
         pub const $id: $kind = $kind {
             mime: Mime {
-                source: Source::$id,
+                source: Atoms::$id,
                 slash: $slash,
                 plus: $plus,
                 params: $params,
@@ -979,12 +765,19 @@ macro_rules! mime_constant_test {
 
         // check that parsing can intern constants
         if let ParamSource::None = __mime.mime.params {
-            let __parsed = parse::parse($src, parse::CanRange::Yes).expect("parse const");
+            let __parsed = mime_parse::parse($src, mime_parse::CanRange::Yes, Atoms::intern).expect("parse const");
             match __parsed.source {
-                Source::Atom(a, $src) if __mime.mime.atom() == a => (),
+                Source::Atom($src) => (),
+                Source::Atom(src) => {
+                    panic!(
+                        "did not intern {:?} correctly: {:?}",
+                        $src,
+                        src,
+                    );
+                },
                 _ => {
                     panic!(
-                        "did not intern {:?} correctly: slash={}, sub={}",
+                        "did not intern an Atom {:?}: slash={}, sub={}",
                         $src,
                         $slash,
                         $src.len() - $slash - 1,
@@ -995,14 +788,42 @@ macro_rules! mime_constant_test {
 
         // prevent ranges from being MediaTypes
         __mime.test_assert_asterisks();
-
-        // return Atom to sanity check no duplicates
-        __mime.mime.atom()
     })
 }
 
+#[cfg(test)]
+macro_rules! mime_constant_proc_macro_test {
+    (@MediaType, $id:ident, $src:expr, $($unused:expr),+) => (
+        // Test proc macro matches constants
+        #[cfg(feature = "macro")]
+        {
+            let __mime = $id;
+            let __m = media_type!($src);
+            assert_eq!(__mime.mime.slash, __m.mime.slash);
+            assert_eq!(__mime.mime.plus, __m.mime.plus);
+            match __m.mime.source {
+                Source::Atom($src) => (),
+                Source::Atom(src) => {
+                    panic!(
+                        "did not intern {:?} correctly: {:?}",
+                        $src,
+                        src,
+                    );
+                },
+                _ => {
+                    panic!(
+                        "did not intern an Atom {:?}",
+                        $src,
+                    );
+                }
+            }
+        }
+    );
+    (@MediaRange, $id:ident, $src:expr, $($unused:expr),+) => ();
+}
 
-impl Source {
+
+impl Atoms {
     fn intern(s: &str, slash: usize) -> Source {
         debug_assert!(
             s.len() > slash,
@@ -1020,46 +841,46 @@ impl Source {
                     match sub.len() {
                         1 => {
                             if sub.as_bytes()[0] == b'*' {
-                                return Source::TEXT_STAR;
+                                return Atoms::TEXT_STAR;
                             }
                         }
                         3 => {
                             if sub == CSS {
-                                return Source::TEXT_CSS;
+                                return Atoms::TEXT_CSS;
                             }
                             if sub == XML {
-                                return Source::TEXT_XML;
+                                return Atoms::TEXT_XML;
                             }
                             if sub == CSV {
-                                return Source::TEXT_CSV;
+                                return Atoms::TEXT_CSV;
                             }
                         },
                         4 => {
                             if sub == HTML {
-                                return Source::TEXT_HTML;
+                                return Atoms::TEXT_HTML;
                             }
                         }
                         5 => {
                             if sub == PLAIN {
-                                return Source::TEXT_PLAIN;
+                                return Atoms::TEXT_PLAIN;
                             }
                             if sub == VCARD {
-                                return Source::TEXT_VCARD;
+                                return Atoms::TEXT_VCARD;
                             }
                         }
                         10 => {
                             if sub == JAVASCRIPT {
-                                return Source::TEXT_JAVASCRIPT;
+                                return Atoms::TEXT_JAVASCRIPT;
                             }
                         }
                         12 => {
                             if sub == EVENT_STREAM {
-                                return Source::TEXT_EVENT_STREAM;
+                                return Atoms::TEXT_EVENT_STREAM;
                             }
                         },
                         20 => {
                             if sub == (Name { source: "tab-separated-values" }) {
-                                return Source::TEXT_TAB_SEPARATED_VALUES;
+                                return Atoms::TEXT_TAB_SEPARATED_VALUES;
                             }
                         }
                         _ => (),
@@ -1068,12 +889,12 @@ impl Source {
                     match sub.len() {
                         4 => {
                             if sub == WOFF {
-                                return Source::FONT_WOFF;
+                                return Atoms::FONT_WOFF;
                             }
                         },
                         5 => {
                             if sub == WOFF2 {
-                                return Source::FONT_WOFF2;
+                                return Atoms::FONT_WOFF2;
                             }
                         },
                         _ => (),
@@ -1085,30 +906,30 @@ impl Source {
                     match sub.len() {
                         1 => {
                             if sub.as_bytes()[0] == b'*' {
-                                return Source::IMAGE_STAR;
+                                return Atoms::IMAGE_STAR;
                             }
                         }
                         3 => {
                             if sub == PNG {
-                                return Source::IMAGE_PNG;
+                                return Atoms::IMAGE_PNG;
                             }
                             if sub == GIF {
-                                return Source::IMAGE_GIF;
+                                return Atoms::IMAGE_GIF;
                             }
                             if sub == BMP {
-                                return Source::IMAGE_BMP;
+                                return Atoms::IMAGE_BMP;
                             }
                         }
                         4 => {
                             if sub == JPEG {
-                                return Source::IMAGE_JPEG;
+                                return Atoms::IMAGE_JPEG;
                             }
                         },
                         7 => {
                             if sub.as_bytes()[3] == b'+'
                                 && &sub[..3] == SVG
                                 && &sub[4..] == XML {
-                                return Source::IMAGE_SVG;
+                                return Atoms::IMAGE_SVG;
                             }
                         },
                         _ => (),
@@ -1118,7 +939,7 @@ impl Source {
                     match sub.len() {
                         1 => {
                             if sub.as_bytes()[0] == b'*' {
-                                return Source::VIDEO_STAR;
+                                return Atoms::VIDEO_STAR;
                             }
                         },
                         _ => (),
@@ -1127,7 +948,7 @@ impl Source {
                     match sub.len() {
                         1 => {
                             if sub.as_bytes()[0] == b'*' {
-                                return Source::AUDIO_STAR;
+                                return Atoms::AUDIO_STAR;
                             }
                         },
                         _ => (),
@@ -1139,37 +960,37 @@ impl Source {
                     match sub.len() {
                         3 => {
                             if sub == PDF {
-                                return Source::APPLICATION_PDF;
+                                return Atoms::APPLICATION_PDF;
                             }
                         }
                         4 => {
                             if sub == JSON {
-                                return Source::APPLICATION_JSON;
+                                return Atoms::APPLICATION_JSON;
                             }
                         },
                         7 => {
                             if sub == MSGPACK {
-                                return Source::APPLICATION_MSGPACK;
+                                return Atoms::APPLICATION_MSGPACK;
                             }
                         },
                         10 => {
                             if sub == JAVASCRIPT {
-                                return Source::APPLICATION_JAVASCRIPT;
+                                return Atoms::APPLICATION_JAVASCRIPT;
                             }
                         },
                         11 => {
                             if sub == (Name { source: "dns-message" }) {
-                                return Source::APPLICATION_DNS;
+                                return Atoms::APPLICATION_DNS;
                             }
                         },
                         12 => {
                             if sub == OCTET_STREAM {
-                                return Source::APPLICATION_OCTET_STREAM;
+                                return Atoms::APPLICATION_OCTET_STREAM;
                             }
                         }
                         21 => {
                             if sub == WWW_FORM_URLENCODED {
-                                return Source::APPLICATION_WWW_FORM_URLENCODED;
+                                return Atoms::APPLICATION_WWW_FORM_URLENCODED;
                             }
                         }
                         _ => (),
@@ -1186,7 +1007,6 @@ impl Source {
 
 mimes! {
     @ MediaType:
-
     TEXT_PLAIN, "text/plain", 4;
     TEXT_PLAIN_UTF_8, "text/plain; charset=utf-8", 4, None, 10;
     TEXT_HTML, "text/html", 4;
@@ -1202,7 +1022,6 @@ mimes! {
     TEXT_TAB_SEPARATED_VALUES_UTF_8, "text/tab-separated-values; charset=utf-8", 4, None, 25;
     TEXT_VCARD, "text/vcard", 4;
 
-    //IMAGE_STAR, "image/*", 5;
     IMAGE_JPEG, "image/jpeg", 5;
     IMAGE_GIF, "image/gif", 5;
     IMAGE_PNG, "image/png", 5;
@@ -1312,7 +1131,9 @@ mod tests {
         assert_eq!(MediaRange::from_str("text/plain").unwrap(), MediaRange::from(TEXT_PLAIN));
 
         // stars
-        assert_eq!("*/*".parse::<MediaRange>().unwrap(), "*/*"); //TODO: STAR_STAR);
+        let any = "*/*".parse::<MediaRange>().unwrap();
+        assert_eq!(any, "*/*");
+        assert_eq!(any, STAR_STAR);
         assert_eq!("image/*".parse::<MediaRange>().unwrap(), "image/*");
         assert_eq!("text/*; charset=utf-8".parse::<MediaRange>().unwrap(), "text/*; charset=utf-8");
 
@@ -1468,5 +1289,59 @@ mod tests {
         MediaType::from_str("image/*").expect_err("image/star");
         MediaType::from_str("text/*; charset=utf-8; q=0.9").expect_err("text/star;q");
     }
+
+    #[cfg(feature = "macro")]
+    #[test]
+    fn test_media_type_macro_atom() {
+        let a = media_type!("text/plain");
+        let b = media_type!("text/plain");
+
+        assert_eq!(a, TEXT_PLAIN);
+        assert_eq!(b, TEXT_PLAIN);
+        assert_eq!(a, b);
+    }
+
+    #[cfg(feature = "macro")]
+    #[test]
+    fn test_media_type_macro_custom() {
+        let foo = media_type!("text/foo");
+        assert_eq!(foo.type_(), TEXT);
+        assert_eq!(foo.subtype(), "foo");
+        assert_eq!(foo.suffix(), None);
+        assert!(!foo.has_params());
+    }
+
+    #[cfg(feature = "macro")]
+    #[test]
+    fn test_media_type_macro_suffix() {
+        let svg = media_type!("image/svg+xml");
+        assert_eq!(svg.type_(), "image");
+        assert_eq!(svg.subtype(), "svg");
+        assert_eq!(svg.suffix(), Some(XML));
+        assert!(!svg.has_params());
+    }
+
+    #[cfg(feature = "macro")]
+    #[test]
+    fn test_media_type_macro_utf8() {
+        let utf8 = media_type!("text/plain; charset=utf-8");
+        assert_eq!(utf8.type_(), TEXT);
+        assert_eq!(utf8.subtype(), PLAIN);
+        assert_eq!(utf8.suffix(), None);
+        assert_eq!(utf8.get_param(CHARSET), Some(UTF_8));
+        assert_eq!(utf8, TEXT_PLAIN_UTF_8);
+    }
+
+    /*
+    #[cfg(feature = "macro")]
+    #[test]
+    fn test_media_type_macro_params() {
+        let mt = media_type!("multipart/form-data; boundary=1234");
+        assert_eq!(mt.type_(), MULTIPART);
+        assert_eq!(mt.subtype(), FORM_DATA);
+        assert_eq!(mt.suffix(), None);
+        assert_eq!(mt.get_param("boundary").unwrap(), "1234");
+    }
+    */
 }
 
