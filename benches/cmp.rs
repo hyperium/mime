@@ -7,11 +7,21 @@ use mime::*;
 use test::Bencher;
 
 #[bench]
-fn bench_eq_parsed(b: &mut Bencher) {
+fn bench_eq_parsed_atom(b: &mut Bencher) {
     let mime = "text/plain; charset=utf-8".parse::<MediaType>().unwrap();
     b.bytes = mime.as_ref().len() as u64;
     b.iter(|| {
         assert_eq!(mime, TEXT_PLAIN_UTF_8);
+    })
+}
+
+#[bench]
+fn bench_eq_parsed_dynamic(b: &mut Bencher) {
+    let mime1 = "text/foo; charset=utf-8".parse::<MediaType>().unwrap();
+    let mime2 =  mime1.clone();
+    b.bytes = mime1.as_ref().len() as u64;
+    b.iter(|| {
+        assert_eq!(mime1, mime2);
     })
 }
 

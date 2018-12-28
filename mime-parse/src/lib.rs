@@ -41,6 +41,11 @@ pub enum ParamSource {
     Custom(usize, Vec<IndexedPair>),
 }
 
+pub enum InternParams {
+    Utf8(usize),
+    None,
+}
+
 #[derive(Clone, Copy)]
 pub struct Indexed(usize, usize);
 
@@ -154,7 +159,7 @@ impl Mime {
 
     pub fn eq_str<F>(&self, s: &str, intern: F) -> bool
     where
-        F: Fn(&str, usize) -> Source,
+        F: Fn(&str, usize, InternParams) -> Source,
     {
         if let ParamSource::Utf8(..) = self.params {
             // this only works because ParamSource::Utf8 is only used if
@@ -250,7 +255,7 @@ pub enum CanRange {
 
 pub fn parse<F>(s: &str, can_range: CanRange, intern: F) -> Result<Mime, ParseError>
 where
-    F: Fn(&str, usize) -> Source,
+    F: Fn(&str, usize, InternParams) -> Source,
 {
     if s == "*/*" {
         return match can_range {
@@ -305,7 +310,7 @@ where
                         break;
                     },
                     None => return Ok(Mime {
-                        source: intern(s, slash),
+                        source: intern(s, slash, InternParams::None),
                         slash,
                         plus,
                         params: ParamSource::None,
@@ -320,7 +325,7 @@ where
             Some((_, c)) if is_token(c) => (),
             None => {
                 return Ok(Mime {
-                    source: intern(s, slash),
+                    source: intern(s, slash, InternParams::None),
                     slash,
                     plus,
                     params: ParamSource::None,
@@ -337,9 +342,8 @@ where
     let params = params_from_str(s, &mut iter, start)?;
 
     let source = match params {
-        ParamSource::None => intern(s, slash),
-        // TODO: update intern to handle these
-        ParamSource::Utf8(_) => Source::Dynamic(s.to_ascii_lowercase()),
+        ParamSource::None => intern(s, slash, InternParams::None),
+        ParamSource::Utf8(semicolon) => intern(s, slash, InternParams::Utf8(semicolon)),
         ParamSource::One(semicolon, a) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a])),
         ParamSource::Two(semicolon, a, b) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a, b])),
         ParamSource::Three(semicolon, a, b, c) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a, b, c])),

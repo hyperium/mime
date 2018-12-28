@@ -40,7 +40,7 @@
 use std::error::Error;
 use std::fmt;
 
-use mime_parse::{Mime, Source, ParamSource};
+use mime_parse::{InternParams, Source, ParamSource};
 
 #[cfg(feature = "macro")]
 use proc_macro_hack::proc_macro_hack;
@@ -131,6 +131,7 @@ names! {
     CSV, "csv";
     EVENT_STREAM, "event-stream";
     VCARD, "vcard";
+    TAB_SEPARATED_VALUES, "tab-separated-values";
 
     // common application/*
     JSON, "json";
@@ -168,11 +169,13 @@ names! {
 ///
 /// # Example
 /// ```
-/// # use mime::{MediaType, CHARSET, UTF_8};
-/// let mime = "text/plain; charset=utf-8".parse::<MediaType>().unwrap();
-/// assert_eq!(mime.get_param(CHARSET), Some(UTF_8));
+/// let mime = mime::TEXT_PLAIN_UTF_8;
+/// assert_eq!(mime.get_param(mime::CHARSET), Some(mime::UTF_8));
 /// ```
-pub static UTF_8: Value = Value { source: "utf-8", ascii_case_insensitive: true };
+pub const UTF_8: Value = Value {
+    source: "utf-8",
+    ascii_case_insensitive: true,
+};
 
 macro_rules! mimes {
     ($(@ $kind:ident: $($id:ident, $($piece:expr),+;)+)+) => (
@@ -226,7 +229,7 @@ macro_rules! mime_constant {
         #[doc = $src]
         #[doc = "`"]
         pub const $id: $kind = $kind {
-            mime: Mime {
+            mime: mime_parse::Mime {
                 source: Atoms::$id,
                 slash: $slash,
                 plus: $plus,
@@ -273,26 +276,29 @@ macro_rules! mime_constant_test {
 
 
         // check that parsing can intern constants
-        if let ParamSource::None = __mime.mime.params {
-            let __parsed = mime_parse::parse($src, mime_parse::CanRange::Yes, Atoms::intern).expect("parse const");
-            match __parsed.source {
-                Source::Atom($src) => (),
-                Source::Atom(src) => {
-                    panic!(
-                        "did not intern {:?} correctly: {:?}",
-                        $src,
-                        src,
-                    );
-                },
-                _ => {
-                    panic!(
-                        "did not intern an Atom {:?}: slash={}, sub={}",
-                        $src,
-                        $slash,
-                        $src.len() - $slash - 1,
-                    );
+        match __mime.mime.params {
+            ParamSource::None | ParamSource::Utf8(_) => {
+                let __parsed = mime_parse::parse($src, mime_parse::CanRange::Yes, Atoms::intern).expect("parse const");
+                match __parsed.source {
+                    Source::Atom($src) => (),
+                    Source::Atom(src) => {
+                        panic!(
+                            "did not intern {:?} correctly: {:?}",
+                            $src,
+                            src,
+                        );
+                    },
+                    _ => {
+                        panic!(
+                            "did not intern an Atom {:?}: slash={}, sub={}",
+                            $src,
+                            $slash,
+                            $src.len() - $slash - 1,
+                        );
+                    }
                 }
-            }
+            },
+            _ => (),
         }
 
         // prevent ranges from being MediaTypes
@@ -333,7 +339,7 @@ macro_rules! mime_constant_proc_macro_test {
 
 
 impl Atoms {
-    fn intern(s: &str, slash: usize) -> Source {
+    fn intern(s: &str, slash: usize, params: InternParams) -> Source {
         debug_assert!(
             s.len() > slash,
             "intern called with illegal slash position: {:?}[{:?}]",
@@ -341,6 +347,47 @@ impl Atoms {
             slash,
         );
 
+        match params {
+            InternParams::Utf8(semicolon) => {
+                Atoms::intern_charset_utf8(s, slash, semicolon)
+            },
+            InternParams::None => {
+                Atoms::intern_no_params(s, slash)
+            },
+        }
+    }
+
+    fn intern_charset_utf8(s: &str, slash: usize, semicolon: usize) -> Source {
+        let top = &s[..slash];
+        let sub = &s[slash + 1..semicolon];
+
+        if top == TEXT {
+            if sub == PLAIN {
+                return Atoms::TEXT_PLAIN_UTF_8;
+            }
+            if sub == HTML {
+                return Atoms::TEXT_HTML_UTF_8;
+            }
+            if sub == CSS {
+                return Atoms::TEXT_CSS_UTF_8;
+            }
+            if sub == CSV {
+                return Atoms::TEXT_CSV_UTF_8;
+            }
+            if sub == TAB_SEPARATED_VALUES {
+                return Atoms::TEXT_TAB_SEPARATED_VALUES_UTF_8;
+            }
+        }
+        if top == APPLICATION {
+            if sub == JAVASCRIPT {
+                return Atoms::APPLICATION_JAVASCRIPT_UTF_8;
+            }
+        }
+
+        Atoms::dynamic(s)
+    }
+
+    fn intern_no_params(s: &str, slash: usize) -> Source {
         let top = &s[..slash];
         let sub = &s[slash + 1..];
 
@@ -388,7 +435,7 @@ impl Atoms {
                             }
                         },
                         20 => {
-                            if sub == (Name { source: "tab-separated-values" }) {
+                            if sub == TAB_SEPARATED_VALUES {
                                 return Atoms::TEXT_TAB_SEPARATED_VALUES;
                             }
                         }
@@ -509,6 +556,10 @@ impl Atoms {
             _ => (),
         }
 
+        Atoms::dynamic(s)
+    }
+
+    fn dynamic(s: &str) -> Source {
         Source::Dynamic(s.to_ascii_lowercase())
     }
 }

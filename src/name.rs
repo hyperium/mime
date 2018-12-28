@@ -10,15 +10,7 @@ use std::fmt;
 /// In all cases, `Name`s are compared case insensitive.
 #[derive(Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct Name<'a> {
-    // TODO: optimize with an Atom-like thing
-    // There a `const` Names, and so it is possible for the static strings
-    // to have a different memory address. Additionally, when used in match
-    // statements, the strings are compared with a memcmp, possibly even
-    // if the address and length are the same.
-    //
-    // Being an enum with an Atom variant that is a usize (and without a
-    // string pointer and boolean) would allow for faster comparisons.
-    /// the underlying str slice, which is _required to be lowercase_.
+    /// The underlying str slice, which is _required to be lowercase_.
     /// Comparisons between two Name instances expect this, as they
     /// have to use `derive(PartialEq)` to be usable in a pattern
     pub(crate) source: &'a str,

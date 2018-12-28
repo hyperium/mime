@@ -129,7 +129,7 @@ impl MediaRange {
 
     fn matches_params(&self, mt: &MediaType) -> bool {
         for (name, value) in self.params() {
-            if mt.get_param(name) != Some(value) {
+            if name != "q" && mt.get_param(name) != Some(value) {
                 return false;
             }
         }
@@ -318,6 +318,20 @@ mod tests {
 
         let many_params = MediaType::parse("text/plain; charset=utf-8; foo=bar").unwrap();
         assert!(text_any_utf8.matches(&many_params));
+    }
+
+    #[test]
+    fn media_range_matches_skips_q() {
+        let range = MediaRange::parse("text/*; q=0.8").unwrap();
+
+        assert!(range.matches(&TEXT_PLAIN_UTF_8));
+        assert!(range.matches(&TEXT_HTML_UTF_8));
+
+        let range = MediaRange::parse("text/*; charset=utf-8; q=0.8").unwrap();
+
+        assert!(range.matches(&TEXT_PLAIN_UTF_8));
+        assert!(range.matches(&TEXT_HTML_UTF_8));
+        assert!(!range.matches(&TEXT_HTML));
     }
 }
 
