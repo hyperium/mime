@@ -44,7 +44,7 @@ fn parse_mime_lit(value: &str) -> Result<mime_parse::Mime, String> {
     let mime = mime_parse::parse(
         value,
         mime_parse::CanRange::No,
-        |s, _| mime_parse::Source::Dynamic(s.into())
+        |s, _, _| mime_parse::Source::Dynamic(s.into())
     );
 
     match mime {
