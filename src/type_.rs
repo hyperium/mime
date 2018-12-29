@@ -509,7 +509,7 @@ mod tests {
     fn test_media_type_macro_suffix() {
         let svg = media_type!("image/svg+xml");
         assert_eq!(svg.type_(), "image");
-        assert_eq!(svg.subtype(), "svg");
+        assert_eq!(svg.subtype(), "svg+xml");
         assert_eq!(svg.suffix(), Some(XML));
         assert!(!svg.has_params());
     }
