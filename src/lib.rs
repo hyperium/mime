@@ -147,7 +147,7 @@ names! {
     GIF, "gif";
     JPEG, "jpeg";
     PNG, "png";
-    SVG, "svg";
+    SVG, "svg+xml";
 
     // audio/*
     BASIC, "basic";
@@ -465,9 +465,7 @@ impl Atoms {
                             }
                         },
                         7 => {
-                            if sub.as_bytes()[3] == b'+'
-                                && &sub[..3] == SVG
-                                && &sub[4..] == XML {
+                            if sub == SVG {
                                 return Atoms::IMAGE_SVG;
                             }
                         },

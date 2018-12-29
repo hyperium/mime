@@ -57,6 +57,10 @@ impl MediaType {
     /// let mime = mime::TEXT_PLAIN;
     /// assert_eq!(mime.subtype(), "plain");
     /// assert_eq!(mime.subtype(), mime::PLAIN);
+    ///
+    /// let svg = mime::IMAGE_SVG;
+    /// assert_eq!(svg.subtype(), mime::SVG);
+    /// assert_eq!(svg.subtype(), "svg+xml");
     /// ```
     #[inline]
     pub fn subtype(&self) -> Name {
@@ -68,7 +72,7 @@ impl MediaType {
     /// # Example
     ///
     /// ```
-    /// let svg = "image/svg+xml".parse::<mime::MediaType>().unwrap();
+    /// let svg = mime::IMAGE_SVG;
     /// assert_eq!(svg.suffix(), Some(mime::XML));
     /// assert_eq!(svg.suffix().unwrap(), "xml");
     ///
@@ -291,7 +295,7 @@ mod tests {
         assert_eq!(TEXT_PLAIN.subtype(), PLAIN);
         assert_eq!(TEXT_PLAIN_UTF_8.subtype(), PLAIN);
         let mime = MediaType::parse("text/html+xml").unwrap();
-        assert_eq!(mime.subtype(), HTML);
+        assert_eq!(mime.subtype(), "html+xml");
     }
 
     #[test]
@@ -423,7 +427,7 @@ mod tests {
     fn test_mime_with_multiple_plus() {
         let mime = MediaType::parse(r#"application/x-custom+bad+suffix"#).unwrap();
         assert_eq!(mime.type_(), "application");
-        assert_eq!(mime.subtype(), "x-custom+bad");
+        assert_eq!(mime.subtype(), "x-custom+bad+suffix");
         assert_eq!(mime.suffix().unwrap(), "suffix");
     }
 

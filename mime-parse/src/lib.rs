@@ -89,9 +89,8 @@ impl Mime {
 
     #[inline]
     pub fn subtype(&self) -> &str {
-        let end = self.plus.unwrap_or_else(|| {
-            self.semicolon().unwrap_or_else(|| self.source.as_ref().len())
-        });
+        let end = self.semicolon()
+            .unwrap_or_else(|| self.source.as_ref().len());
         &self.source.as_ref()[self.slash + 1..end]
     }
 
