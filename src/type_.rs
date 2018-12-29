@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use mime_parse::Mime;
 
-use crate::{Atoms, InvalidMime, Name, Value};
+use crate::{Atoms, InvalidMime, Value};
 
 /// A parsed MIME or media type.
 ///
@@ -45,8 +45,8 @@ impl MediaType {
     /// assert_eq!(mime.type_(), mime::TEXT);
     /// ```
     #[inline]
-    pub fn type_(&self) -> Name {
-        Name::new(self.mime.type_())
+    pub fn type_(&self) -> &str {
+        self.mime.type_()
     }
 
     /// Get the subtype of this `MediaType`.
@@ -63,8 +63,8 @@ impl MediaType {
     /// assert_eq!(svg.subtype(), "svg+xml");
     /// ```
     #[inline]
-    pub fn subtype(&self) -> Name {
-        Name::new(self.mime.subtype())
+    pub fn subtype(&self) -> &str {
+        self.mime.subtype()
     }
 
     /// Get an optional +suffix for this `MediaType`.
@@ -74,14 +74,14 @@ impl MediaType {
     /// ```
     /// let svg = mime::IMAGE_SVG;
     /// assert_eq!(svg.suffix(), Some(mime::XML));
-    /// assert_eq!(svg.suffix().unwrap(), "xml");
+    /// assert_eq!(svg.suffix(), Some("xml"));
     ///
     ///
     /// assert!(mime::TEXT_PLAIN.suffix().is_none());
     /// ```
     #[inline]
-    pub fn suffix(&self) -> Option<Name> {
-        self.mime.suffix().map(Name::new)
+    pub fn suffix(&self) -> Option<&str> {
+        self.mime.suffix()
     }
 
     /// Look up a parameter by name.
@@ -97,10 +97,7 @@ impl MediaType {
     /// let mime = "multipart/form-data; boundary=ABCDEFG".parse::<mime::MediaType>().unwrap();
     /// assert_eq!(mime.param(mime::BOUNDARY).unwrap(), "ABCDEFG");
     /// ```
-    pub fn param<'a, N>(&'a self, attr: N) -> Option<Value<'a>>
-    where
-        N: crate::name::NameEq<'a>,
-    {
+    pub fn param<'a>(&'a self, attr: &str) -> Option<Value<'a>> {
         self.params().find(|e| attr == e.0).map(|e| e.1)
     }
 
@@ -127,11 +124,10 @@ impl MediaType {
     /// assert!(params.next().is_none());
     /// ```
     #[inline]
-    pub fn params(&self) -> impl Iterator<Item = (Name, Value)> {
+    pub fn params(&self) -> impl Iterator<Item = (&str, Value)> {
         self.mime.params().map(|(n, v)| {
-            let name = Name::new(n);
-            let value = Value::new(v).for_name(name);
-            (name, value)
+            let value = Value::new(v).for_name(n);
+            (n, value)
         })
     }
 

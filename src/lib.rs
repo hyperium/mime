@@ -49,12 +49,10 @@ use proc_macro_hack::proc_macro_hack;
 #[proc_macro_hack]
 pub use mime_macro::media_type;
 
-pub use self::name::Name;
 pub use self::range::MediaRange;
 pub use self::type_::MediaType;
 pub use self::value::{Value, UTF_8};
 
-mod name;
 mod range;
 mod type_;
 mod value;
@@ -92,13 +90,13 @@ macro_rules! names {
     ($($id:ident, $e:expr;)*) => (
         $(
         #[doc = $e]
-        pub const $id: Name<'static> = Name::constant($e);
+        pub const $id: &'static str = $e;
         )*
 
         #[test]
         fn test_names_macro_consts() {
             $(
-            assert_eq!($id.as_ref().to_ascii_lowercase(), $id.as_ref());
+            assert_eq!($id.to_ascii_lowercase(), $id);
             )*
         }
     )
@@ -516,7 +514,7 @@ impl Atoms {
                             }
                         },
                         11 => {
-                            if sub == Name::new("dns-message") {
+                            if sub == "dns-message" {
                                 return Atoms::APPLICATION_DNS;
                             }
                         },

@@ -4,8 +4,6 @@ use std::borrow::Cow;
 
 use quoted_string::{self, ContentChars, AsciiCaseInsensitiveEq};
 
-use crate::Name;
-
 /// a `Value` usable for a charset parameter.
 ///
 /// # Example
@@ -39,7 +37,7 @@ impl<'a> Value<'a> {
     }
 
     #[inline]
-    pub(crate) fn for_name(self, name: Name) -> Self {
+    pub(crate) fn for_name(self, name: &str) -> Self {
         Value {
             source: self.source,
             ascii_case_insensitive: name == crate::CHARSET,
