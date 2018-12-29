@@ -94,11 +94,16 @@ impl<'a> fmt::Display for Name<'a> {
 }
 
 // Sealed trait for `MediaType::param()`.
-pub trait NameEq<'a>: PartialEq<Name<'a>> {}
+pub trait NameEq<'a>: PartialEq<Name<'a>> + Sealed {}
+
+pub trait Sealed {}
+
+impl<'a> Sealed for Name<'a> {}
+impl<'a> Sealed for &'a str {}
 
 impl<'a, T> NameEq<'a> for T
 where
-    T: PartialEq<Name<'a>>
+    T: PartialEq<Name<'a>> + Sealed,
 {}
 
 
