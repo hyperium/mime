@@ -146,7 +146,7 @@ impl MediaRange {
     /// ```
     pub fn param<'a, N>(&'a self, attr: N) -> Option<Value<'a>>
     where
-        N: PartialEq<Name<'a>>,
+        N: crate::name::NameEq<'a>,
     {
         self.params().find(|e| attr == e.0).map(|e| e.1)
     }

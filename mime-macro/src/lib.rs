@@ -17,6 +17,7 @@ pub fn media_type(tokens: TokenStream) -> TokenStream {
         }
     };
 
+    let source = mime.source.as_ref();
     let slash = mime.slash;
     let plus = match mime.plus {
         Some(i) => quote! { ::std::option::Option::Some(#i) },
@@ -24,34 +25,32 @@ pub fn media_type(tokens: TokenStream) -> TokenStream {
     };
     let params = match mime.params {
         mime_parse::ParamSource::None => quote! { $crate::private::ParamSource::None },
-        mime_parse::ParamSource::Utf8(i) => quote! { $crate::private::ParamSource::Utf8(#i) },
+        mime_parse::ParamSource::Utf8(sc) => quote! { $crate::private::ParamSource::Utf8(#sc) },
+        mime_parse::ParamSource::One(sc, ((na, nz), (va, vz))) => quote! {
+            $crate::private::ParamSource::One(#sc, ((#na, #nz), (#va, #vz)))
+        },
         _ => unreachable!("custom params quote"),
     };
 
     let out = quote! {
-        unsafe { $crate::MediaType::private_from_proc_macro(#lit_str, #slash, #plus, #params) }
+        unsafe { $crate::MediaType::private_from_proc_macro(#source, #slash, #plus, #params) }
     };
     out.into()
 }
 
 fn parse_mime_lit(value: &str) -> Result<mime_parse::Mime, String> {
-    for c in value.chars() {
-        if c.is_ascii_uppercase() {
-            return Err("uppercase MediaTypes not supported yet".into())
-        }
-    }
-
     let mime = mime_parse::parse(
         value,
         mime_parse::CanRange::No,
-        |s, _, _| mime_parse::Source::Dynamic(s.into())
+        |s, _, _| mime_parse::Source::Dynamic(s.to_ascii_lowercase())
     );
 
     match mime {
         Ok(mime) => match mime.params {
             mime_parse::ParamSource::None |
             mime_parse::ParamSource::Utf8(_) => Ok(mime),
-            _ => Err("MediaType custom parameters not supported yet".into())
+            mime_parse::ParamSource::One(..) => Ok(mime),
+            _ => Err("multiple parameters not supported yet".into())
         },
         Err(err) => {
             Err(format!("invalid MediaType: {}", err))

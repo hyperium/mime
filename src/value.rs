@@ -87,20 +87,18 @@ impl<'a> Value<'a> {
     /// # Example
     ///
     /// ```
-    /// use std::borrow::Cow;
-    ///
     /// let raw_mime = r#"text/plain; p1="char is \""; p2="simple"; p3=simple2"#;
     /// let mime = raw_mime.parse::<mime::MediaType>().unwrap();
     ///
     /// let param1 = mime.param("p1").unwrap();
-    /// let expected: Cow<'static, str> = Cow::Owned(r#"char is ""#.into());
+    /// let expected = r#"char is ""#;
     /// assert_eq!(param1.to_content(), expected);
     ///
     /// let param2 = mime.param("p2").unwrap();
-    /// assert_eq!(param2.to_content(), Cow::Borrowed("simple"));
+    /// assert_eq!(param2.to_content(), "simple");
     ///
     /// let param3 = mime.param("p3").unwrap();
-    /// assert_eq!(param3.to_content(), Cow::Borrowed("simple2"));
+    /// assert_eq!(param3.to_content(), "simple2");
     /// ```
     ///
     pub fn to_content(&self) -> Cow<'a, str> {
@@ -347,26 +345,26 @@ mod test {
 
     #[test]
     fn test_as_str_repr() {
-        let value = Value { source: "\"ab cd\"", ascii_case_insensitive: false };
+        let value = Value::new("\"ab cd\"");
         assert_eq!(value, "ab cd");
         assert_eq!(value.as_str_repr(), "\"ab cd\"");
     }
 
     #[test]
     fn test_to_content_not_quoted() {
-        let value = Value { source: "abc", ascii_case_insensitive: false };
+        let value = Value::new("abc");
         assert_eq!(value.to_content(), Cow::Borrowed("abc"));
     }
 
     #[test]
     fn test_to_content_quoted_simple() {
-        let value = Value { source: "\"ab cd\"", ascii_case_insensitive: false };
+        let value = Value::new("\"ab cd\"");
         assert_eq!(value.to_content(), Cow::Borrowed("ab cd"));
     }
 
     #[test]
     fn test_to_content_with_quoted_pair() {
-        let value = Value { source: "\"ab\\\"cd\"", ascii_case_insensitive: false };
+        let value = Value::new("\"ab\\\"cd\"");
         assert_eq!(value, "ab\"cd");
         let expected: Cow<'static, str> = Cow::Owned("ab\"cd".into());
         assert_eq!(value.to_content(), expected);

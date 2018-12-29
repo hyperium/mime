@@ -29,6 +29,7 @@ impl AsRef<str> for Source {
     }
 }
 
+type Indexed = (usize, usize);
 type IndexedPair = (Indexed, Indexed);
 
 #[derive(Clone)]
@@ -45,9 +46,6 @@ pub enum InternParams {
     Utf8(usize),
     None,
 }
-
-#[derive(Clone, Copy)]
-pub struct Indexed(usize, usize);
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -371,7 +369,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 Some((i, b' ')) if i == start => start = i + 1,
                 Some((_, c)) if is_token(c) => (),
                 Some((i, b'=')) if i > start => {
-                    name = Indexed(start, i);
+                    name = (start, i);
                     start = i + 1;
                     break 'name;
                 },
@@ -404,7 +402,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 } else {
                     match iter.next() {
                         Some((i, b'"')) if i > start => {
-                            value = Indexed(start, i+1);
+                            value = (start, i+1);
                             break 'value;
                         },
                         Some((_, b'\\')) => is_quoted_pair = true,
@@ -424,12 +422,12 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                     },
                     Some((_, c)) if is_token(c) => (),
                     Some((i, b';')) if i > start => {
-                        value = Indexed(start, i);
+                        value = (start, i);
                         start = i + 1;
                         break 'value;
                     }
                     None => {
-                        value = Indexed(start, s.len());
+                        value = (start, s.len());
                         start = s.len();
                         break 'value;
                     },
@@ -469,8 +467,8 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
         match params {
             ParamSource::Utf8(i) => {
                 let i = i + 2;
-                let charset = Indexed(i, "charset".len() + i);
-                let utf8 = Indexed(charset.1 + 1, charset.1 + "utf-8".len() + 1);
+                let charset = (i, "charset".len() + i);
+                let utf8 = (charset.1 + 1, charset.1 + "utf-8".len() + 1);
                 params = ParamSource::Two(semicolon, (charset, utf8), (name, value));
             },
             ParamSource::One(sc, a) => {
@@ -498,7 +496,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
     Ok(params)
 }
 
-fn lower_ascii_with_params(s: &str, semi: usize, params: &[(Indexed, Indexed)]) -> String {
+fn lower_ascii_with_params(s: &str, semi: usize, params: &[IndexedPair]) -> String {
     let mut owned = s.to_owned();
     owned[..semi].make_ascii_lowercase();
 

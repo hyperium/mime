@@ -95,7 +95,7 @@ impl MediaType {
     /// ```
     pub fn param<'a, N>(&'a self, attr: N) -> Option<Value<'a>>
     where
-        N: PartialEq<Name<'a>>,
+        N: crate::name::NameEq<'a>,
     {
         self.params().find(|e| attr == e.0).map(|e| e.1)
     }
@@ -164,14 +164,14 @@ impl MediaType {
     ///
     /// # Uppercase
     ///
-    /// ```compile_fail
+    /// ```
     /// mime::media_type!("TEXT/PLAIN");
     /// ```
     ///
     /// # Parameters
     ///
     /// ```compile_fail
-    /// mime::media_type!("multipart/form-data; boundary=abcd");
+    /// mime::media_type!("multipart/form-data; boundary=abcd; two=2");
     /// ```
     ///
     /// # Ranges
@@ -356,6 +356,7 @@ mod tests {
         let mime = MediaType::parse("multipart/form-data; charset=BASE64; boundary=ABCDEFG").unwrap();
         assert_eq!(mime.param(CHARSET).unwrap(), "bAsE64");
         assert_eq!(mime.param(BOUNDARY).unwrap(), "ABCDEFG");
+        assert_eq!(mime.param(BOUNDARY).unwrap().as_str_repr(), "ABCDEFG");
         assert_ne!(mime.param(BOUNDARY).unwrap(), "abcdefg");
     }
 
@@ -520,16 +521,21 @@ mod tests {
         assert_eq!(utf8, TEXT_PLAIN_UTF_8);
     }
 
-    /*
     #[cfg(feature = "macro")]
     #[test]
-    fn test_media_type_macro_params() {
-        let mt = media_type!("multipart/form-data; boundary=1234");
+    fn test_media_type_macro_one_param() {
+        let mt = media_type!("multipart/form-data; boundary=AbCd");
         assert_eq!(mt.type_(), MULTIPART);
         assert_eq!(mt.subtype(), FORM_DATA);
         assert_eq!(mt.suffix(), None);
-        assert_eq!(mt.param("boundary").unwrap(), "1234");
+        assert_eq!(mt.param("boundary").unwrap(), "AbCd");
     }
-    */
+
+    #[cfg(feature = "macro")]
+    #[test]
+    fn test_media_type_macro_lowercase() {
+        let mt = media_type!("MULTIPART/FORM-DATA; BOUNDARY=AbCd");
+        assert_eq!(mt.to_string(), "multipart/form-data; boundary=AbCd");
+    }
 }
 

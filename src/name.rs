@@ -93,6 +93,14 @@ impl<'a> fmt::Display for Name<'a> {
     }
 }
 
+// Sealed trait for `MediaType::param()`.
+pub trait NameEq<'a>: PartialEq<Name<'a>> {}
+
+impl<'a, T> NameEq<'a> for T
+where
+    T: PartialEq<Name<'a>>
+{}
+
 
 #[cfg(test)]
 mod test {

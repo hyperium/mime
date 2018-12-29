@@ -59,8 +59,6 @@ mod range;
 mod type_;
 mod value;
 
-
-
 /// An invalid `MediaType` or `MediaRange`.
 #[derive(Debug)]
 pub struct InvalidMime {
@@ -89,7 +87,6 @@ pub mod private {
     #[doc(hidden)]
     pub use mime_parse::ParamSource;
 }
-
 
 macro_rules! names {
     ($($id:ident, $e:expr;)*) => (
