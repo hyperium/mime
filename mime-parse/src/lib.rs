@@ -1,7 +1,5 @@
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
-use std::hash::{Hash, Hasher};
 use std::{fmt, slice};
 use std::iter::Enumerate;
 use std::str::Bytes;
@@ -201,26 +199,6 @@ impl PartialEq for Mime {
                     self.eq_of_params(other)
             },
         }
-    }
-}
-
-impl Eq for Mime {}
-
-impl PartialOrd for Mime {
-    fn partial_cmp(&self, other: &Mime) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Mime {
-    fn cmp(&self, other: &Mime) -> Ordering {
-        self.source.as_ref().cmp(other.source.as_ref())
-    }
-}
-
-impl Hash for Mime {
-    fn hash<T: Hasher>(&self, hasher: &mut T) {
-        hasher.write(self.source.as_ref().as_bytes());
     }
 }
 

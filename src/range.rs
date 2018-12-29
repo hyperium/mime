@@ -6,7 +6,7 @@ use mime_parse::Mime;
 use crate::{Atoms, InvalidMime, MediaType, Name, Value};
 
 /// A parsed media range used to match media types.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq)]
 pub struct MediaRange {
     pub(super) mime: Mime,
 }

@@ -12,7 +12,7 @@ use crate::{Atoms, InvalidMime, Name, Value};
 /// A `MediaType` represents an exact format type. The HTTP `Accet` header
 /// can include "media ranges", which can match multiple media types. Those
 /// "media ranges" should be represented as `MediaRange`.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq)]
 pub struct MediaType {
     pub(super) mime: Mime,
 }
