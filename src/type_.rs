@@ -341,6 +341,9 @@ mod tests {
 
         MediaType::parse("multipart/form-data; boundary=--------foobar").unwrap();
 
+        // empty quotes
+        MediaType::parse("audo/wave; codecs=\"\"").expect("param value with empty quotes");
+
         // parse errors
         MediaType::parse("f o o / bar").unwrap_err();
         MediaType::parse("text\n/plain").unwrap_err();
