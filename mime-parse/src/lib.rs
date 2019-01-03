@@ -36,7 +36,6 @@ pub enum ParamSource {
     Utf8(usize),
     One(usize, IndexedPair),
     Two(usize, IndexedPair, IndexedPair),
-    Three(usize, IndexedPair, IndexedPair, IndexedPair),
     Custom(usize, Vec<IndexedPair>),
 }
 
@@ -106,7 +105,6 @@ impl Mime {
             ParamSource::Utf8(_) => ParamsInner::Utf8,
             ParamSource::One(_, a) => ParamsInner::Inlined(&self.source, Inline::One(a)),
             ParamSource::Two(_, a, b) => ParamsInner::Inlined(&self.source, Inline::Two(a, b)),
-            ParamSource::Three(_, a, b, c) => ParamsInner::Inlined(&self.source, Inline::Three(a, b, c)),
             ParamSource::Custom(_, ref params) => {
                 ParamsInner::Custom {
                     source: &self.source,
@@ -130,7 +128,6 @@ impl Mime {
             ParamSource::Utf8(i) |
             ParamSource::One(i, ..) |
             ParamSource::Two(i, ..) |
-            ParamSource::Three(i, ..) |
             ParamSource::Custom(i, _) => Some(i),
             ParamSource::None => None,
         }
@@ -321,7 +318,6 @@ where
         ParamSource::Utf8(semicolon) => intern(s, slash, InternParams::Utf8(semicolon)),
         ParamSource::One(semicolon, a) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a])),
         ParamSource::Two(semicolon, a, b) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a, b])),
-        ParamSource::Three(semicolon, a, b, c) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a, b, c])),
         ParamSource::Custom(semicolon, ref indices) => Source::Dynamic(lower_ascii_with_params(s, semicolon, indices)),
     };
 
@@ -452,10 +448,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 params = ParamSource::Two(sc, a, (name, value));
             },
             ParamSource::Two(sc, a, b) => {
-                params = ParamSource::Three(sc, a, b, (name, value));
-            },
-            ParamSource::Three(sc, a, b, c) => {
-                params = ParamSource::Custom(sc, vec![a, b, c, (name, value)]);
+                params = ParamSource::Custom(sc, vec![a, b, (name, value)]);
             },
             ParamSource::Custom(_, ref mut vec) => {
                 vec.push((name, value));
@@ -606,7 +599,6 @@ enum Inline {
     Done,
     One(IndexedPair),
     Two(IndexedPair, IndexedPair),
-    Three(IndexedPair, IndexedPair, IndexedPair),
 }
 
 enum FastEqRes {
@@ -662,10 +654,6 @@ impl<'a> Iterator for Params<'a> {
                         *inline = Inline::One(two);
                         Some(one)
                     },
-                    Inline::Three(one, two, three) => {
-                        *inline = Inline::Two(two, three);
-                        Some(one)
-                    },
                 };
                 next.map(|(name, value)| {
                     let name = &source.as_ref()[name.0..name.1];
@@ -691,7 +679,6 @@ impl<'a> Iterator for Params<'a> {
             ParamsInner::Inlined(_, Inline::Done) => (0, Some(0)),
             ParamsInner::Inlined(_, Inline::One(..)) => (1, Some(1)),
             ParamsInner::Inlined(_, Inline::Two(..)) => (2, Some(2)),
-            ParamsInner::Inlined(_, Inline::Three(..)) => (3, Some(3)),
             ParamsInner::Custom { ref params, .. } => params.size_hint(),
             ParamsInner::None => (0, Some(0)),
         }
