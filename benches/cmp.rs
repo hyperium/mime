@@ -58,7 +58,7 @@ fn bench_ne_consts(b: &mut Bencher) {
 fn bench_eq_type_(b: &mut Bencher) {
     let mime = TEXT_PLAIN_UTF_8;
     let name = TEXT;
-    b.bytes = name.as_ref().len() as u64;
+    b.bytes = name.len() as u64;
     b.iter(|| {
         assert_eq!(mime.type_(), name);
     });
