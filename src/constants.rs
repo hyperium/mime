@@ -41,7 +41,6 @@ macro_rules! mime_constant {
     )
 }
 
-
 #[cfg(test)]
 macro_rules! mime_constant_test {
     ($id:ident, $src:expr) => ({
