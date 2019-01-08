@@ -502,10 +502,8 @@ mod tests {
         assert_eq!(foo.suffix(), None);
         assert!(!foo.has_params());
 
-        /*
         let parsed = MediaType::parse("text/foo").unwrap();
         assert_eq!(foo, parsed);
-        */
 
         let foo2 = media_type!("text/foo");
         assert_eq!(foo, foo2);

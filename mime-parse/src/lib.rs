@@ -94,14 +94,13 @@ impl Mime {
 
     #[inline]
     pub fn subtype(&self) -> &str {
-        let end = self.semicolon()
-            .unwrap_or_else(|| self.source.as_ref().len());
+        let end = self.semicolon_or_end();
         &self.source.as_ref()[self.slash + 1..end]
     }
 
     #[inline]
     pub fn suffix(&self) -> Option<&str> {
-        let end = self.semicolon().unwrap_or_else(|| self.source.as_ref().len());
+        let end = self.semicolon_or_end();
         self.plus.map(|idx| &self.source.as_ref()[idx + 1..end])
     }
 
@@ -139,11 +138,23 @@ impl Mime {
         }
     }
 
+    #[inline]
+    fn semicolon_or_end(&self) -> usize {
+        self.semicolon().unwrap_or_else(|| self.source.as_ref().len())
+    }
+
     fn atom(&self) -> u8 {
         match self.source {
             Source::Atom(a, _) => a,
             Source::Dynamic(_) => 0,
         }
+    }
+
+    fn eq_type_subtype(&self, other: &Mime) -> bool {
+        let left = &self.source.as_ref()[..self.semicolon_or_end()];
+        let right = &other.source.as_ref()[..other.semicolon_or_end()];
+
+        left == right
     }
 
     fn eq_of_params(&self, other: &Mime) -> bool {
@@ -200,10 +211,7 @@ impl PartialEq for Mime {
             // If either atom is 0, it is "dynamic" and needs to be compared
             // slowly...
             (0, _) | (_, 0) => {
-                self.type_() == other.type_()  &&
-                    self.subtype() == other.subtype() &&
-                    self.suffix() == other.suffix() &&
-                    self.eq_of_params(other)
+                self.eq_type_subtype(other) && self.eq_of_params(other)
             },
             (a, b) => a == b,
         }
