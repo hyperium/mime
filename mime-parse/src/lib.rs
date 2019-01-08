@@ -1,8 +1,14 @@
+//! Internal types for the `mime` crate.
+
 use std::collections::HashMap;
 use std::error::Error;
 use std::{fmt, slice};
 use std::iter::Enumerate;
 use std::str::Bytes;
+
+pub mod constants;
+
+use self::constants::Atoms;
 
 #[derive(Clone)]
 pub struct Mime {
@@ -14,14 +20,14 @@ pub struct Mime {
 
 #[derive(Clone)]
 pub enum Source {
-    Atom(&'static str),
+    Atom(u8, &'static str),
     Dynamic(String),
 }
 
 impl AsRef<str> for Source {
     fn as_ref(&self) -> &str {
         match *self {
-            Source::Atom(s) => s,
+            Source::Atom(_, s) => s,
             Source::Dynamic(ref s) => s,
         }
     }
@@ -149,10 +155,7 @@ impl Mime {
         my_params == other_params
     }
 
-    pub fn eq_str<F>(&self, s: &str, intern: F) -> bool
-    where
-        F: Fn(&str, usize, InternParams) -> Source,
-    {
+    pub fn eq_str(&self, s: &str) -> bool {
         if let ParamSource::Utf8(..) = self.params {
             // this only works because ParamSource::Utf8 is only used if
             // its "<type>/<subtype>; charset=utf-8" them moment spaces are
@@ -165,14 +168,14 @@ impl Mime {
                 // we can use parts of the parser to parse the string without
                 // actually crating a mime, and use that for comparision
                 //
-                parse(s, CanRange::Yes, intern)
+                parse(s, CanRange::Yes)
                     .map(|other_mime| {
                         self == &other_mime
                     })
                     .unwrap_or(false)
             }
         } else if self.has_params() {
-            parse(s, CanRange::Yes, intern)
+            parse(s, CanRange::Yes)
                 .map(|other_mime| {
                     self == &other_mime
                 })
@@ -187,7 +190,9 @@ impl PartialEq for Mime {
     #[inline]
     fn eq(&self, other: &Mime) -> bool {
         match (&self.source, &other.source) {
-            (&Source::Atom(a), &Source::Atom(b)) => a == b,
+            (&Source::Atom(a, _), &Source::Atom(b, _)) => {
+                a == b
+            },
             _ => {
                 self.type_() == other.type_()  &&
                     self.subtype() == other.subtype() &&
@@ -225,18 +230,10 @@ pub enum CanRange {
     No,
 }
 
-pub fn parse<F>(s: &str, can_range: CanRange, intern: F) -> Result<Mime, ParseError>
-where
-    F: Fn(&str, usize, InternParams) -> Source,
-{
+pub fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
     if s == "*/*" {
         return match can_range {
-            CanRange::Yes => Ok(Mime {
-                source: Source::Atom("*/*"),
-                slash: 1,
-                plus: None,
-                params: ParamSource::None,
-            }),
+            CanRange::Yes => Ok(constants::STAR_STAR),
             CanRange::No => Err(ParseError::InvalidRange),
         };
     }
@@ -282,7 +279,7 @@ where
                         break;
                     },
                     None => return Ok(Mime {
-                        source: intern(s, slash, InternParams::None),
+                        source: Atoms::intern(s, slash, InternParams::None),
                         slash,
                         plus,
                         params: ParamSource::None,
@@ -297,7 +294,7 @@ where
             Some((_, c)) if is_token(c) => (),
             None => {
                 return Ok(Mime {
-                    source: intern(s, slash, InternParams::None),
+                    source: Atoms::intern(s, slash, InternParams::None),
                     slash,
                     plus,
                     params: ParamSource::None,
@@ -314,8 +311,8 @@ where
     let params = params_from_str(s, &mut iter, start)?;
 
     let source = match params {
-        ParamSource::None => intern(s, slash, InternParams::None),
-        ParamSource::Utf8(semicolon) => intern(s, slash, InternParams::Utf8(semicolon)),
+        ParamSource::None => Atoms::intern(s, slash, InternParams::None),
+        ParamSource::Utf8(semicolon) => Atoms::intern(s, slash, InternParams::Utf8(semicolon)),
         ParamSource::One(semicolon, a) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a])),
         ParamSource::Two(semicolon, a, b) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a, b])),
         ParamSource::Custom(semicolon, ref indices) => Source::Dynamic(lower_ascii_with_params(s, semicolon, indices)),
@@ -684,3 +681,4 @@ impl<'a> Iterator for Params<'a> {
         }
     }
 }
+

@@ -17,7 +17,15 @@ pub fn media_type(tokens: TokenStream) -> TokenStream {
         }
     };
 
-    let source = mime.source.as_ref();
+    let source = match mime.source {
+        mime_parse::Source::Atom(a, s) => quote! {
+            $crate::private::Source::Atom(#a, #s)
+        },
+        mime_parse::Source::Dynamic(s) => quote! {
+            // Atom 0 is a dynamic-but-still-static
+            $crate::private::Source::Atom(0, #s)
+        },
+    };
     let slash = mime.slash;
     let plus = match mime.plus {
         Some(i) => quote! { ::std::option::Option::Some(#i) },
@@ -42,7 +50,6 @@ fn parse_mime_lit(value: &str) -> Result<mime_parse::Mime, String> {
     let mime = mime_parse::parse(
         value,
         mime_parse::CanRange::No,
-        |s, _, _| mime_parse::Source::Dynamic(s.to_ascii_lowercase())
     );
 
     match mime {

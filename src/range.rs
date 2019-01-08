@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use mime_parse::Mime;
 
-use crate::{Atoms, InvalidMime, MediaType, Value};
+use crate::{InvalidMime, MediaType, Value};
 
 /// A parsed media range used to match media types.
 #[derive(Clone, PartialEq)]
@@ -209,7 +209,7 @@ impl From<MediaType> for MediaRange {
 
 impl PartialEq<str> for MediaRange {
     fn eq(&self, s: &str) -> bool {
-        self.mime.eq_str(s, Atoms::intern)
+        self.mime.eq_str(s)
     }
 }
 
@@ -238,7 +238,7 @@ impl FromStr for MediaRange {
     type Err = InvalidMime;
 
     fn from_str(s: &str) -> Result<MediaRange, Self::Err> {
-        mime_parse::parse(s, mime_parse::CanRange::Yes, Atoms::intern)
+        mime_parse::parse(s, mime_parse::CanRange::Yes)
             .map(|mime| MediaRange { mime })
             .map_err(|e| InvalidMime { inner: e })
     }

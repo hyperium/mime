@@ -1,9 +1,9 @@
 use std::fmt;
 use std::str::FromStr;
 
-use mime_parse::Mime;
+use mime_parse::{Mime};
 
-use crate::{Atoms, InvalidMime, Value};
+use crate::{InvalidMime, Value};
 
 /// A parsed MIME or media type.
 ///
@@ -198,14 +198,14 @@ impl MediaType {
     #[doc(hidden)]
     #[cfg(feature = "macro")]
     pub const unsafe fn private_from_proc_macro(
-        source: &'static str,
+        source: crate::private::Source,
         slash: usize,
         plus: Option<usize>,
         params: crate::private::ParamSource,
     ) -> Self {
         MediaType {
             mime: Mime {
-                source: crate::Source::Atom(source),
+                source,
                 slash,
                 plus,
                 params,
@@ -221,7 +221,7 @@ impl MediaType {
 
 impl PartialEq<str> for MediaType {
     fn eq(&self, s: &str) -> bool {
-        self.mime.eq_str(s, Atoms::intern)
+        self.mime.eq_str(s)
     }
 }
 
@@ -250,7 +250,7 @@ impl FromStr for MediaType {
     type Err = InvalidMime;
 
     fn from_str(s: &str) -> Result<MediaType, Self::Err> {
-        mime_parse::parse(s, mime_parse::CanRange::No, Atoms::intern)
+        mime_parse::parse(s, mime_parse::CanRange::No)
             .map(|mime| MediaType { mime })
             .map_err(|e| InvalidMime { inner: e })
     }
