@@ -501,6 +501,17 @@ mod tests {
         assert_eq!(foo.subtype(), "foo");
         assert_eq!(foo.suffix(), None);
         assert!(!foo.has_params());
+
+        /*
+        let parsed = MediaType::parse("text/foo").unwrap();
+        assert_eq!(foo, parsed);
+        */
+
+        let foo2 = media_type!("text/foo");
+        assert_eq!(foo, foo2);
+
+        let bar = media_type!("text/bar");
+        assert_ne!(foo, bar);
     }
 
     #[cfg(feature = "macro")]

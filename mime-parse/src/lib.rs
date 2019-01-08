@@ -139,6 +139,13 @@ impl Mime {
         }
     }
 
+    fn atom(&self) -> u8 {
+        match self.source {
+            Source::Atom(a, _) => a,
+            Source::Dynamic(_) => 0,
+        }
+    }
+
     fn eq_of_params(&self, other: &Mime) -> bool {
         use self::FastEqRes::*;
         // if ParamInner is None or Utf8 we can determine equality faster
@@ -189,16 +196,16 @@ impl Mime {
 impl PartialEq for Mime {
     #[inline]
     fn eq(&self, other: &Mime) -> bool {
-        match (&self.source, &other.source) {
-            (&Source::Atom(a, _), &Source::Atom(b, _)) => {
-                a == b
-            },
-            _ => {
+        match (self.atom(), other.atom()) {
+            // If either atom is 0, it is "dynamic" and needs to be compared
+            // slowly...
+            (0, _) | (_, 0) => {
                 self.type_() == other.type_()  &&
                     self.subtype() == other.subtype() &&
                     self.suffix() == other.suffix() &&
                     self.eq_of_params(other)
             },
+            (a, b) => a == b,
         }
     }
 }
