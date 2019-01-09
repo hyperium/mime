@@ -17,10 +17,9 @@ pub const UTF_8: Value = Value {
 };
 
 /// A parameter value section of a `MediaType` or `MediaRange`.
-/// 
-/// Except for the `charset` parameter, parameters 
-/// are compared case sensitive
-#[derive(Clone, Copy, Eq, PartialOrd, Ord, Hash)]
+///
+/// Except for the `charset` parameter, parameters are compared case-sensitive.
+#[derive(Clone, Copy)]
 pub struct Value<'a> {
     source: &'a str,
     ascii_case_insensitive: bool
