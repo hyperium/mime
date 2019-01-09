@@ -1,4 +1,6 @@
 //! Internal types for the `mime` crate.
+//!
+//! Nothing to see here. Move along.
 
 use std::collections::HashMap;
 use std::error::Error;
@@ -9,6 +11,7 @@ use std::str::Bytes;
 pub mod constants;
 
 use self::constants::Atoms;
+use self::sealed::Sealed;
 
 #[derive(Clone)]
 pub struct Mime {
@@ -258,7 +261,11 @@ fn range(index: (u16, u16)) -> std::ops::Range<usize> {
     index.0 as usize .. index.1 as usize
 }
 
-pub fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
+pub fn parse<P>(src: P, can_range: CanRange) -> Result<Mime, ParseError>
+where
+    P: Parse,
+{
+    let s = src.as_str();
     if s.len() > std::u16::MAX as usize {
         return Err(ParseError::TooLong);
     }
@@ -713,4 +720,28 @@ impl<'a> Iterator for Params<'a> {
         }
     }
 }
+
+mod sealed {
+    pub trait Sealed {
+        fn as_str(&self) -> &str;
+    }
+}
+
+pub trait Parse: Sealed {}
+
+impl<'a> Sealed for &'a str {
+    fn as_str(&self) -> &str {
+        self
+    }
+}
+
+impl<'a> Parse for &'a str {}
+
+impl<'a> Sealed for &'a String {
+    fn as_str(&self) -> &str {
+        *self
+    }
+}
+
+impl<'a> Parse for &'a String {}
 

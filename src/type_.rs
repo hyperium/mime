@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use mime_parse::{Mime};
+use mime_parse::{Mime, Parse};
 
 use crate::{InvalidMime, Value};
 
@@ -68,8 +68,10 @@ impl MediaType {
     ///
     /// Returns an error if the source is not a valid media type.
     #[inline]
-    pub fn parse(source: &str) -> Result<Self, InvalidMime> {
-        source.parse()
+    pub fn parse(source: impl Parse) -> Result<Self, InvalidMime> {
+        mime_parse::parse(source, mime_parse::CanRange::No)
+            .map(|mime| MediaType { mime })
+            .map_err(|e| InvalidMime { inner: e })
     }
 
     /// Get the top level media type for this `MediaType`.
@@ -222,9 +224,7 @@ impl FromStr for MediaType {
     type Err = InvalidMime;
 
     fn from_str(s: &str) -> Result<MediaType, Self::Err> {
-        mime_parse::parse(s, mime_parse::CanRange::No)
-            .map(|mime| MediaType { mime })
-            .map_err(|e| InvalidMime { inner: e })
+        MediaType::parse(s)
     }
 }
 

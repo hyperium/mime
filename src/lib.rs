@@ -121,6 +121,14 @@ mod type_;
 mod value;
 
 
+fn _assert_traits() {
+    fn assert_send_sync<T: Send + Sync>() {}
+
+    assert_send_sync::<InvalidMime>();
+    assert_send_sync::<MediaRange>();
+    assert_send_sync::<MediaType>();
+    assert_send_sync::<Value>();
+}
 
 /// **DO NOT IMPORT THIS MODULE OR ITS TYPES.**
 ///
