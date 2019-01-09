@@ -225,6 +225,14 @@ impl MediaRange {
     }
 }
 
+/// Any `MediaType` can freely be a `MediaRange`.
+///
+/// # Example
+///
+/// ```
+/// // If we only supported `text/plain`:
+/// let range = mime::MediaRange::from(mime::TEXT_PLAIN);
+/// ```
 impl From<MediaType> for MediaRange {
     fn from(mt: MediaType) -> MediaRange {
         MediaRange {

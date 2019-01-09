@@ -3,7 +3,7 @@ use std::fmt;
 
 use mime_parse::ParseError;
 
-/// An invalid `MediaType` or `MediaRange`.
+/// An error type representing an invalid `MediaType` or `MediaRange`.
 #[derive(Debug)]
 pub struct InvalidMime {
     pub(crate) inner: ParseError,

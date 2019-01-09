@@ -7,6 +7,43 @@ use crate::{InvalidMime, Value};
 
 /// A parsed media type (or "MIME").
 ///
+/// ## Getting a `MediaType`
+///
+/// There are several constants exported for common media types:
+///
+/// ```
+/// let text = mime::TEXT_PLAIN;
+/// let svg = mime::IMAGE_SVG;
+/// let json = mime::APPLICATION_JSON;
+/// // etc
+/// ```
+///
+/// A `MediaType` can also be parsed from a string, such as from
+/// a `Content-Type` HTTP header:
+///
+/// ```
+/// match mime::MediaType::parse("text/plain; charset=utf-8") {
+///     Ok(text) => assert_eq!(text, mime::TEXT_PLAIN_UTF_8),
+///     Err(err) => panic!("you should handle this parse error: {}", err),
+/// }
+/// ```
+///
+/// ## Inspecting `MediaType`s
+///
+/// Once you have a `MediaType`, you can inspect the various parts of it.
+/// Since the `type_()` and `subtype()` methods return `&str`, you can make
+/// easy-to-read `match` statements to handle different media types. To prevent
+/// typos, many common type names are available as constants.
+///
+/// ```
+/// let mime = mime::TEXT_PLAIN;
+/// match (mime.type_(), mime.subtype()) {
+///     (mime::TEXT, mime::PLAIN) => println!("plain text!"),
+///     (mime::TEXT, _) => println!("structured text"),
+///     _ => println!("not text"),
+/// }
+/// ```
+///
 /// ## Note about wildcards (`*`)
 ///
 /// A `MediaType` represents an exact format type. The HTTP `Accept` header

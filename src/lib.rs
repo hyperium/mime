@@ -12,19 +12,33 @@
 //! - A [`MediaRange`](MediaRange) is a range of types that an agent is willing
 //!   to receive, such as `text/*`.
 //!
-//! ## What is MediaType?
+//! ## Getting a `MediaType`
 //!
-//! Example mime string: `text/plain`
+//! There are several constants exported for common media types:
 //!
 //! ```
-//! # const IGNORE_TOKENS: &str = stringify! {
-//! let plain_text = mime::media_type!("text/plain");
-//! # };
-//! # let plain_text = mime::TEXT_PLAIN;
-//! assert_eq!(plain_text, mime::TEXT_PLAIN);
+//! let text = mime::TEXT_PLAIN;
+//! let svg = mime::IMAGE_SVG;
+//! let json = mime::APPLICATION_JSON;
+//! // etc
 //! ```
 //!
-//! ## Inspecting Media Types
+//! A [`MediaType`](MediaType) can also be parsed from a string, such as from
+//! a `Content-Type` HTTP header:
+//!
+//! ```
+//! match mime::MediaType::parse("text/plain; charset=utf-8") {
+//!     Ok(text) => assert_eq!(text, mime::TEXT_PLAIN_UTF_8),
+//!     Err(err) => panic!("you should handle this parse error: {}", err),
+//! }
+//! ```
+//!
+//! ## Inspecting `MediaType`s
+//!
+//! Once you have a `MediaType`, you can inspect the various parts of it.
+//! Since the `type_()` and `subtype()` methods return `&str`, you can make
+//! easy-to-read `match` statements to handle different media types. To prevent
+//! typos, many common type names are available as constants.
 //!
 //! ```
 //! let mime = mime::TEXT_PLAIN;
@@ -37,14 +51,56 @@
 //!
 //! ## Using Media Ranges for matching
 //!
+//! [`MediaRange`](MediaRange)s are often used by agents to declare a "range"
+//! of media types that they can understand. A common place to find these is
+//! `Accept` HTTP header, perhaps like this:
+//!
+//! ```http
+//! GET /index.html HTTP/1.1
+//! Accept: text/html, text/*
+//! ```
+//!
+//! These can be parsed as `MediaRange`s, and then used to check if any of
+//! the `MediaType`s you have would satisfy them.
 //!
 //! ```
-//! assert!(mime::STAR_STAR.matches(&mime::TEXT_PLAIN));
-//! assert!(mime::TEXT_STAR.matches(&mime::TEXT_PLAIN));
+//! match mime::MediaRange::parse("text/*") {
+//!     Ok(range) => {
+//!         // There's a couple constants in case you don't need parsing...
+//!         assert_eq!(range, mime::TEXT_STAR);
+//!
+//!         // "text/plain" is a match
+//!         assert!(range.matches(&mime::TEXT_PLAIN));
+//!
+//!         // "application/json" is NOT
+//!         assert!(!range.matches(&mime::APPLICATION_JSON));
+//!
+//!     },
+//!     Err(err) => panic!("that's a bad range: {}", err),
+//! }
 //! ```
 #[cfg(feature = "macro")]
 use proc_macro_hack::proc_macro_hack;
 
+/// Compile-time `MediaType`s.
+///
+/// Performs validation and construction of a `MediaType` at compile-time,
+/// catching parse errors early, and allowing them to be used as constants
+/// or statics.
+///
+/// This requires the `macro` feature enabled on the mime crate. Something
+/// like this in your `Cargo.toml`:
+///
+/// ```toml
+/// [dependencies]
+/// mime = { version = "0.4", features = ["macro"] }
+/// ```
+///
+/// # Example
+///
+/// ```
+/// const VND_MYAPP: mime::MediaType = mime::media_type!("application/vnd.myapp+json");
+/// ```
 #[cfg(feature = "macro")]
 #[proc_macro_hack]
 pub use mime_macro::media_type;
