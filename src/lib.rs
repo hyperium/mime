@@ -1,9 +1,14 @@
 #![doc(html_root_url = "https://docs.rs/mime/0.3.6")]
-//#![deny(warnings)]
+#![deny(warnings)]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 
 //! # MediaType and MediaRange
+//!
+//! The `mime` crate defines two major types for representing MIMEs:
+//!
+//! - A `MediaType` is a concrete description of some content, such as `text/plain`.
+//! - A `MediaRange` is a range of types that an agent is willing to receive, such as `text/*`.
 //!
 //! ## What is MediaType?
 //!
