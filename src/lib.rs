@@ -7,8 +7,10 @@
 //!
 //! The `mime` crate defines two major types for representing MIMEs:
 //!
-//! - A `MediaType` is a concrete description of some content, such as `text/plain`.
-//! - A `MediaRange` is a range of types that an agent is willing to receive, such as `text/*`.
+//! - A [`MediaType`](MediaType) is a concrete description of some content,
+//!   such as `text/plain`.
+//! - A [`MediaRange`](MediaRange) is a range of types that an agent is willing
+//!   to receive, such as `text/*`.
 //!
 //! ## What is MediaType?
 //!
@@ -56,6 +58,8 @@ pub use self::value::{Value, UTF_8};
 
 mod constants;
 mod error;
+#[cfg(feature = "macro")]
+mod macros;
 mod range;
 mod type_;
 mod value;
