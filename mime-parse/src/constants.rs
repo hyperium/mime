@@ -358,10 +358,11 @@ macro_rules! names {
     ($($id:ident, $e:expr;)*) => (
         pub mod names {
             $(
-            #[doc = "The string literal `\""]
-            #[doc = $e]
-            #[doc = "\"`."]
-            pub const $id: &'static str = $e;
+            names! {
+                @DOC concat!("The string literal `\"", $e, "\"`."),
+                $id,
+                $e
+            }
             )*
 
             #[test]
@@ -371,6 +372,12 @@ macro_rules! names {
                 )*
             }
         }
+    );
+    (@DOC $doc:expr, $id:ident, $e:expr) => (
+        #[doc = "The string literal `\""]
+        #[doc = $e]
+        #[doc = "\"`."]
+        pub const $id: &'static str = $e;
     )
 }
 
