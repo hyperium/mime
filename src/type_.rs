@@ -274,6 +274,20 @@ mod tests {
     use crate::*;
 
     #[test]
+    fn test_size_of() {
+        assert!(
+            std::mem::size_of::<MediaType>() < 100,
+            "just to be warned if the size grows suddenly"
+        );
+
+        assert_eq!(
+            std::mem::size_of::<MediaType>(),
+            std::mem::size_of::<Option<MediaType>>(),
+            "option size optimization"
+        );
+    }
+
+    #[test]
     fn test_type_() {
         assert_eq!(TEXT_PLAIN.type_(), TEXT);
     }

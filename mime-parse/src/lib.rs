@@ -13,8 +13,8 @@ use self::constants::Atoms;
 #[derive(Clone)]
 pub struct Mime {
     pub source: Source,
-    pub slash: usize,
-    pub plus: Option<usize>,
+    pub slash: u16,
+    pub plus: Option<u16>,
     pub params: ParamSource,
 }
 
@@ -33,16 +33,16 @@ impl AsRef<str> for Source {
     }
 }
 
-type Indexed = (usize, usize);
+type Indexed = (u16, u16);
 type IndexedPair = (Indexed, Indexed);
 
 #[derive(Clone)]
 pub enum ParamSource {
     None,
-    Utf8(usize),
-    One(usize, IndexedPair),
-    Two(usize, IndexedPair, IndexedPair),
-    Custom(usize, Vec<IndexedPair>),
+    Utf8(u16),
+    One(u16, IndexedPair),
+    Two(u16, IndexedPair, IndexedPair),
+    Custom(u16, Vec<IndexedPair>),
 }
 
 pub enum InternParams {
@@ -91,19 +91,19 @@ impl fmt::Display for ParseError {
 impl Mime {
     #[inline]
     pub fn type_(&self) -> &str {
-        &self.source.as_ref()[..self.slash]
+        &self.source.as_ref()[..self.slash as usize]
     }
 
     #[inline]
     pub fn subtype(&self) -> &str {
         let end = self.semicolon_or_end();
-        &self.source.as_ref()[self.slash + 1..end]
+        &self.source.as_ref()[self.slash as usize + 1..end]
     }
 
     #[inline]
     pub fn suffix(&self) -> Option<&str> {
         let end = self.semicolon_or_end();
-        self.plus.map(|idx| &self.source.as_ref()[idx + 1..end])
+        self.plus.map(|idx| &self.source.as_ref()[idx as usize + 1..end])
     }
 
     #[inline]
@@ -135,7 +135,7 @@ impl Mime {
             ParamSource::Utf8(i) |
             ParamSource::One(i, ..) |
             ParamSource::Two(i, ..) |
-            ParamSource::Custom(i, _) => Some(i),
+            ParamSource::Custom(i, _) => Some(i as usize),
             ParamSource::None => None,
         }
     }
@@ -247,6 +247,17 @@ pub enum CanRange {
     No,
 }
 
+#[inline]
+fn as_u16(i: usize) -> u16 {
+    debug_assert!(i <= std::u16::MAX as usize, "as_u16 overflow");
+    i as u16
+}
+
+#[inline]
+fn range(index: (u16, u16)) -> std::ops::Range<usize> {
+    index.0 as usize .. index.1 as usize
+}
+
 pub fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
     if s.len() > std::u16::MAX as usize {
         return Err(ParseError::TooLong);
@@ -267,7 +278,7 @@ pub fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
         match iter.next() {
             Some((_, c)) if is_token(c) => (),
             Some((i, b'/')) if i > 0 => {
-                slash = i;
+                slash = as_u16(i);
                 start = i + 1;
                 break;
             },
@@ -284,7 +295,7 @@ pub fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
     loop {
         match iter.next() {
             Some((i, b'+')) if i > start => {
-                plus = Some(i);
+                plus = Some(as_u16(i));
             },
             Some((i, b';')) if i > start => {
                 start = i;
@@ -333,10 +344,10 @@ pub fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
 
     let source = match params {
         ParamSource::None => Atoms::intern(s, slash, InternParams::None),
-        ParamSource::Utf8(semicolon) => Atoms::intern(s, slash, InternParams::Utf8(semicolon)),
-        ParamSource::One(semicolon, a) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a])),
-        ParamSource::Two(semicolon, a, b) => Source::Dynamic(lower_ascii_with_params(s, semicolon, &[a, b])),
-        ParamSource::Custom(semicolon, ref indices) => Source::Dynamic(lower_ascii_with_params(s, semicolon, indices)),
+        ParamSource::Utf8(semicolon) => Atoms::intern(s, slash, InternParams::Utf8(semicolon as usize)),
+        ParamSource::One(semicolon, a) => Source::Dynamic(lower_ascii_with_params(s, semicolon as usize, &[a])),
+        ParamSource::Two(semicolon, a, b) => Source::Dynamic(lower_ascii_with_params(s, semicolon as usize, &[a, b])),
+        ParamSource::Custom(semicolon, ref indices) => Source::Dynamic(lower_ascii_with_params(s, semicolon as usize, indices)),
     };
 
     Ok(Mime {
@@ -349,7 +360,7 @@ pub fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
 
 
 fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Result<ParamSource, ParseError> {
-    let semicolon = start;
+    let semicolon = as_u16(start);
     start += 1;
     let mut params = ParamSource::None;
     'params: while start < s.len() {
@@ -360,7 +371,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 Some((i, b' ')) if i == start => start = i + 1,
                 Some((_, c)) if is_token(c) => (),
                 Some((i, b'=')) if i > start => {
-                    name = (start, i);
+                    name = (as_u16(start), as_u16(i));
                     start = i + 1;
                     break 'name;
                 },
@@ -393,7 +404,7 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 } else {
                     match iter.next() {
                         Some((i, b'"')) if i > start => {
-                            value = (start, i+1);
+                            value = (as_u16(start), as_u16(i + 1));
                             break 'value;
                         },
                         Some((_, b'\\')) => is_quoted_pair = true,
@@ -413,12 +424,12 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                     },
                     Some((_, c)) if is_token(c) => (),
                     Some((i, b';')) if i > start => {
-                        value = (start, i);
+                        value = (as_u16(start), as_u16(i));
                         start = i + 1;
                         break 'value;
                     }
                     None => {
-                        value = (start, s.len());
+                        value = (as_u16(start), as_u16(s.len()));
                         start = s.len();
                         break 'value;
                     },
@@ -458,8 +469,8 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
         match params {
             ParamSource::Utf8(i) => {
                 let i = i + 2;
-                let charset = (i, "charset".len() + i);
-                let utf8 = (charset.1 + 1, charset.1 + "utf-8".len() + 1);
+                let charset = (i, "charset".len() as u16 + i);
+                let utf8 = (charset.1 + 1, charset.1 + "utf-8".len() as u16 + 1);
                 params = ParamSource::Two(semicolon, (charset, utf8), (name, value));
             },
             ParamSource::One(sc, a) => {
@@ -472,8 +483,8 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 vec.push((name, value));
             },
             ParamSource::None => {
-                if semicolon + 2 == name.0 && "charset".eq_ignore_ascii_case(&s[name.0..name.1]) &&
-                    "utf-8".eq_ignore_ascii_case(&s[value.0..value.1]) {
+                if semicolon + 2 == name.0 && "charset".eq_ignore_ascii_case(&s[name.0 as usize .. name.1 as usize]) &&
+                    "utf-8".eq_ignore_ascii_case(&s[value.0 as usize .. value.1 as usize]) {
                     params = ParamSource::Utf8(semicolon);
                     continue 'params;
                 }
@@ -488,13 +499,13 @@ fn lower_ascii_with_params(s: &str, semi: usize, params: &[IndexedPair]) -> Stri
     let mut owned = s.to_owned();
     owned[..semi].make_ascii_lowercase();
 
-    for &(ref name, ref value) in params {
-        owned[name.0..name.1].make_ascii_lowercase();
+    for &(name, value) in params {
+        owned[range(name)].make_ascii_lowercase();
         // Since we just converted this part of the string to lowercase,
         // we can skip the `Name == &str` unicase check and do a faster
         // memcmp instead.
-        if &owned[name.0..name.1] == "charset" {
-            owned[value.0..value.1].make_ascii_lowercase();
+        if &owned[range(name)] == "charset" {
+            owned[range(value)].make_ascii_lowercase();
         }
     }
 
@@ -674,15 +685,15 @@ impl<'a> Iterator for Params<'a> {
                     },
                 };
                 next.map(|(name, value)| {
-                    let name = &source.as_ref()[name.0..name.1];
-                    let value = &source.as_ref()[value.0..value.1];
+                    let name = &source.as_ref()[range(name)];
+                    let value = &source.as_ref()[range(value)];
                     (name, value)
                 })
             },
             ParamsInner::Custom { source, ref mut params } => {
                 params.next().map(|&(name, value)| {
-                    let name = &source.as_ref()[name.0..name.1];
-                    let value = &source.as_ref()[value.0..value.1];
+                    let name = &source.as_ref()[range(name)];
+                    let value = &source.as_ref()[range(value)];
                     (name, value)
                 })
             },

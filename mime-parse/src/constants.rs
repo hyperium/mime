@@ -128,7 +128,8 @@ macro_rules! mime_constant_test {
 }
 
 impl Atoms {
-    pub(super) fn intern(s: &str, slash: usize, params: InternParams) -> Source {
+    pub(super) fn intern(s: &str, slash: u16, params: InternParams) -> Source {
+        let slash = slash as usize;
         debug_assert!(
             s.len() > slash,
             "intern called with illegal slash position: {:?}[{:?}]",
