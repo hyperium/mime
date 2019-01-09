@@ -374,9 +374,7 @@ macro_rules! names {
         }
     );
     (@DOC $doc:expr, $id:ident, $e:expr) => (
-        #[doc = "The string literal `\""]
-        #[doc = $e]
-        #[doc = "\"`."]
+        #[doc = $doc]
         pub const $id: &'static str = $e;
     )
 }
