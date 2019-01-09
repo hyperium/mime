@@ -65,9 +65,10 @@ mod value;
 /// **DO NOT IMPORT THIS MODULE OR ITS TYPES.**
 ///
 /// There is zero backwards-compatibility guarantee, your code *will* break.
+/// Kittens **will** die.
 #[doc(hidden)]
 #[cfg(feature = "macro")]
 pub mod private {
     #[doc(hidden)]
-    pub use mime_parse::{ParamSource, Source};
+    pub use mime_parse::{Mime, ParamSource, Source};
 }

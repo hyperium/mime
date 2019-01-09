@@ -41,7 +41,14 @@ pub fn media_type(tokens: TokenStream) -> TokenStream {
     };
 
     let out = quote! {
-        unsafe { $crate::MediaType::private_from_proc_macro(#source, #slash, #plus, #params) }
+        unsafe {
+            $crate::MediaType::private_from_proc_macro($crate::private::Mime {
+                source: #source,
+                slash: #slash,
+                plus: #plus,
+                params: #params,
+            })
+        }
     };
     out.into()
 }

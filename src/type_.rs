@@ -5,11 +5,11 @@ use mime_parse::{Mime};
 
 use crate::{InvalidMime, Value};
 
-/// A parsed MIME or media type.
+/// A parsed media type (or "MIME").
 ///
-/// # Note about wildcards (`*`)
+/// ## Note about wildcards (`*`)
 ///
-/// A `MediaType` represents an exact format type. The HTTP `Accet` header
+/// A `MediaType` represents an exact format type. The HTTP `Accept` header
 /// can include "media ranges", which can match multiple media types. Those
 /// "media ranges" should be represented as `MediaRange`.
 #[derive(Clone, PartialEq)]
@@ -151,6 +151,7 @@ impl MediaType {
     ///
     /// This function has no backwards-compatibility guarantees. It can and
     /// *will* change, and your code *will* break.
+    /// Kittens **will** die.
     ///
     /// # Tests
     ///
@@ -198,18 +199,10 @@ impl MediaType {
     #[doc(hidden)]
     #[cfg(feature = "macro")]
     pub const unsafe fn private_from_proc_macro(
-        source: crate::private::Source,
-        slash: usize,
-        plus: Option<usize>,
-        params: crate::private::ParamSource,
+        mime: crate::private::Mime,
     ) -> Self {
         MediaType {
-            mime: Mime {
-                source,
-                slash,
-                plus,
-                params,
-            }
+            mime,
         }
     }
 
@@ -352,6 +345,19 @@ mod tests {
         MediaType::parse("text/plain;\r\ncharset=utf-8").unwrap_err();
         MediaType::parse("text/plain; charset=\r\nutf-8").unwrap_err();
         MediaType::parse("text/plain; charset=\"\r\nutf-8\"").unwrap_err();
+    }
+
+    #[test]
+    fn test_parse_too_long() {
+        let mut source = vec![b'a'; ::std::u16::MAX as usize];
+        source[5] = b'/';
+
+        let mut s = String::from_utf8(source).unwrap();
+
+        MediaType::parse(&s).expect("parses AT max length");
+
+        s.push('a');
+        MediaType::parse(&s).expect_err("errors OVER max length");
     }
 
     #[test]

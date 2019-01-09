@@ -6,6 +6,32 @@ use mime_parse::Mime;
 use crate::{InvalidMime, MediaType, Value};
 
 /// A parsed media range used to match media types.
+///
+/// Commonly found in the HTTP `Accept` header, these are used for agents
+/// to indicate general classes of content that they can understand.
+///
+/// # Example
+///
+/// ```
+/// use mime::MediaRange;
+///
+/// // Suppose this was parsed from an `Accept` header
+/// let range = MediaRange::parse("text/*").unwrap();
+///
+/// // The formats of the resource that we have:
+/// let formats = vec![
+///     mime::APPLICATION_JSON,
+///     mime::TEXT_PLAIN_UTF_8,
+///     mime::TEXT_HTML,
+/// ];
+///
+/// for format in &formats {
+///     if range.matches(format) {
+///         // This should print for the plain and HTML text...
+///         println!("We could send in {:?} format!", format);
+///     }
+/// }
+/// ```
 #[derive(Clone, PartialEq)]
 pub struct MediaRange {
     pub(super) mime: Mime,

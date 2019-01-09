@@ -60,6 +60,7 @@ pub enum ParseError {
         byte: u8,
     },
     InvalidRange,
+    TooLong,
 }
 
 impl Error for ParseError {
@@ -70,6 +71,7 @@ impl Error for ParseError {
             ParseError::MissingQuote => "a quote (\") was missing from a parameter value",
             ParseError::InvalidToken { .. } => "invalid token",
             ParseError::InvalidRange => "unexpected asterisk",
+            ParseError::TooLong => "the string is too long",
         }
     }
 }
@@ -246,6 +248,10 @@ pub enum CanRange {
 }
 
 pub fn parse(s: &str, can_range: CanRange) -> Result<Mime, ParseError> {
+    if s.len() > std::u16::MAX as usize {
+        return Err(ParseError::TooLong);
+    }
+
     if s == "*/*" {
         return match can_range {
             CanRange::Yes => Ok(constants::STAR_STAR),
