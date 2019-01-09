@@ -358,9 +358,9 @@ macro_rules! names {
     ($($id:ident, $e:expr;)*) => (
         pub mod names {
             $(
-            #[doc = "The common string `"]
+            #[doc = "The string literal `\""]
             #[doc = $e]
-            #[doc = "`."]
+            #[doc = "\"`."]
             pub const $id: &'static str = $e;
             )*
 
