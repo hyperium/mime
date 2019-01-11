@@ -340,6 +340,24 @@ mod tests {
         MediaType::parse("text/plain; charset=\"\r\nutf-8\"").unwrap_err();
     }
 
+
+    #[test]
+    fn test_from_str_empty_parameter_list() {
+        static CASES: &'static [&'static str] = &[
+            "text/event-stream;",
+            "text/event-stream; ",
+            "text/event-stream;       ",
+        ];
+
+        for &case in CASES {
+            let mime = MediaType::parse(case).expect(case);
+            assert_eq!(mime, TEXT_EVENT_STREAM, "case = {:?}", case);
+            assert_eq!(mime.type_(), TEXT, "case = {:?}", case);
+            assert_eq!(mime.subtype(), EVENT_STREAM, "case = {:?}", case);
+            assert!(!mime.has_params(), "case = {:?}", case);
+        }
+    }
+
     #[test]
     fn test_parse_too_long() {
         let mut source = vec![b'a'; ::std::u16::MAX as usize];

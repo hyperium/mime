@@ -350,7 +350,13 @@ where
     let params = params_from_str(s, &mut iter, start)?;
 
     let source = match params {
-        ParamSource::None => Atoms::intern(s, slash, InternParams::None),
+        ParamSource::None => {
+            // Getting here means there *was* a `;`, but then no parameters
+            // after it... So let's just chop off the empty param list.
+            debug_assert_ne!(s.len(), start);
+            debug_assert_eq!(s.as_bytes()[start], b';');
+            Atoms::intern(&s[..start], slash, InternParams::None)
+        },
         ParamSource::Utf8(semicolon) => Atoms::intern(s, slash, InternParams::Utf8(semicolon as usize)),
         ParamSource::One(semicolon, a) => Source::Dynamic(lower_ascii_with_params(s, semicolon as usize, &[a])),
         ParamSource::Two(semicolon, a, b) => Source::Dynamic(lower_ascii_with_params(s, semicolon as usize, &[a, b])),
@@ -375,7 +381,10 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
         // name
         'name: loop {
             match iter.next() {
-                Some((i, b' ')) if i == start => start = i + 1,
+                Some((i, b' ')) if i == start => {
+                    start = i + 1;
+                    continue 'params;
+                },
                 Some((_, c)) if is_token(c) => (),
                 Some((i, b'=')) if i > start => {
                     name = (as_u16(start), as_u16(i));
