@@ -206,6 +206,14 @@ impl Mime {
         Params(inner)
     }
 
+    #[cfg(test)]
+    fn has_params(&self) -> bool {
+        match self.params {
+            ParamSource::None => false,
+            _ => true,
+        }
+    }
+
     #[inline]
     fn semicolon(&self) -> Option<usize> {
         match self.params {
@@ -263,9 +271,15 @@ fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
 
             //name
             if let Some(a_idx) = a.find('=') {
-                let a_name = a[..a_idx].trim_left();
+                let a_name = {
+                    #[allow(deprecated)]
+                    { a[..a_idx].trim_left() }
+                };
                 if let Some(b_idx) = b.find('=') {
-                    let b_name = b[..b_idx].trim_left();
+                    let b_name = {
+                        #[allow(deprecated)]
+                        { b[..b_idx].trim_left() }
+                    };
                     if !unicase::eq_ascii(a_name, b_name) {
                         return false;
                     }
@@ -789,8 +803,11 @@ mod tests {
     fn test_mime_from_str() {
         assert_eq!(Mime::from_str("text/plain").unwrap(), TEXT_PLAIN);
         assert_eq!(Mime::from_str("TEXT/PLAIN").unwrap(), TEXT_PLAIN);
-        assert_eq!(Mime::from_str("text/plain; charset=utf-8").unwrap(), TEXT_PLAIN_UTF_8);
+        assert_eq!(Mime::from_str("text/plain;charset=utf-8").unwrap(), TEXT_PLAIN_UTF_8);
         assert_eq!(Mime::from_str("text/plain;charset=\"utf-8\"").unwrap(), TEXT_PLAIN_UTF_8);
+
+        // spaces
+        assert_eq!(Mime::from_str("text/plain; charset=utf-8").unwrap(), TEXT_PLAIN_UTF_8);
 
         // quotes + semi colon
         Mime::from_str("text/plain;charset=\"utf-8\"; foo=bar").unwrap();
@@ -822,6 +839,24 @@ mod tests {
         Mime::from_str("text/plain;\r\ncharset=utf-8").unwrap_err();
         Mime::from_str("text/plain; charset=\r\nutf-8").unwrap_err();
         Mime::from_str("text/plain; charset=\"\r\nutf-8\"").unwrap_err();
+    }
+
+    #[test]
+    fn test_mime_from_str_empty_parameter_list() {
+        static CASES: &'static [&'static str] = &[
+            "text/event-stream;",
+            "text/event-stream; ",
+            "text/event-stream;       ",
+        ];
+
+        for case in CASES {
+            let mime = Mime::from_str(case).expect(case);
+            assert_eq!(mime, TEXT_EVENT_STREAM, "case = {:?}", case);
+            assert_eq!(mime.type_(), TEXT, "case = {:?}", case);
+            assert_eq!(mime.subtype(), EVENT_STREAM, "case = {:?}", case);
+            assert!(!mime.has_params(), "case = {:?}", case);
+        }
+
     }
 
     #[test]

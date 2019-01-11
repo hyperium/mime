@@ -98,9 +98,12 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
     let params = try!(params_from_str(s, &mut iter, start));
 
     let src = match params {
-        ParamSource::Utf8(_) |
-        ParamSource::None => s.to_ascii_lowercase(),
+        ParamSource::Utf8(_)  => s.to_ascii_lowercase(),
         ParamSource::Custom(semicolon, ref indices) => lower_ascii_with_params(s, semicolon, indices),
+        ParamSource::None => {
+            // Chop off the empty list
+            s[..start].to_ascii_lowercase()
+        }
     };
 
     Ok(Mime {
@@ -121,7 +124,10 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
         // name
         'name: loop {
             match iter.next() {
-                Some((i, b' ')) if i == start => start = i + 1,
+                Some((i, b' ')) if i == start => {
+                    start = i + 1;
+                    continue 'params;
+                },
                 Some((_, c)) if is_token(c) => (),
                 Some((i, b'=')) if i > start => {
                     name = Indexed(start, i);
