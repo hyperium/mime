@@ -1,5 +1,6 @@
 sudo: false
 language: rust
+script: cargo test --all
 matrix:
     fast_finish: true
     allow_failures:
@@ -8,8 +9,7 @@ matrix:
         - rust: stable
         - rust: beta
         - rust: nightly
-        - rust: 1.31.0
 
         - rust: stable
-          script: cargo test --features macro
+          script: cargo test --all --features macro
 

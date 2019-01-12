@@ -75,32 +75,32 @@ macro_rules! mime_constant_test {
     );
 
     (FULL $id:ident, $src:expr, $slash:expr, $plus:expr, $params:expr) => ({
-        let __mime = $id;
+        let mime = $id;
 
         // check slash, plus, and semicolon are in correct positions
-        let __slash = __mime.as_ref().as_bytes()[$slash];
-        assert_eq!(__slash, b'/', "{:?} has {:?} at slash position {:?}", __mime, __slash as char, $slash);
-        if let Some(plus) = __mime.mime.plus {
-            let __c = __mime.as_ref().as_bytes()[plus];
-            assert_eq!(__c, b'+', "{:?} has {:?} at plus position {:?}", __mime, __c as char, plus);
+        let slash = mime.as_ref().as_bytes()[$slash];
+        assert_eq!(slash, b'/', "{:?} has {:?} at slash position {:?}", mime, slash as char, $slash);
+        if let Some(plus) = mime.plus {
+            let c_plus = mime.as_ref().as_bytes()[plus as usize];
+            assert_eq!(c_plus, b'+', "{:?} has {:?} at plus position {:?}", mime, c_plus as char, plus);
         } else {
-            assert!(!__mime.as_ref().as_bytes().contains(&b'+'), "{:?} forgot plus", __mime);
+            assert!(!mime.as_ref().as_bytes().contains(&b'+'), "{:?} forgot plus", mime);
         }
-        if let ParamSource::Utf8(semicolon) = __mime.mime.params {
-            assert_eq!(__mime.as_ref().as_bytes()[semicolon], b';');
-            assert_eq!(&__mime.as_ref()[semicolon..], "; charset=utf-8");
-        } else if let ParamSource::None = __mime.mime.params {
-            assert!(!__mime.as_ref().as_bytes().contains(&b';'));
+        if let ParamSource::Utf8(semicolon) = mime.params {
+            assert_eq!(mime.as_ref().as_bytes()[semicolon as usize], b';');
+            assert_eq!(&mime.as_ref()[semicolon as usize ..], "; charset=utf-8");
+        } else if let ParamSource::None = mime.params {
+            assert!(!mime.as_ref().as_bytes().contains(&b';'));
         } else {
             unreachable!("consts wont have ParamSource::Custom");
         }
 
 
         // check that parsing can intern constants
-        match __mime.mime.params {
+        match mime.params {
             ParamSource::None | ParamSource::Utf8(_) => {
-                let __parsed = parse::parse($src, parse::CanRange::Yes, Atoms::intern).expect("parse const");
-                match __parsed.source {
+                let parsed = crate::parse($src, crate::CanRange::Yes).expect("parse const");
+                match parsed.source {
                     Source::Atom(_, $src) => (),
                     Source::Atom(_, src) => {
                         panic!(
@@ -121,9 +121,6 @@ macro_rules! mime_constant_test {
             },
             _ => (),
         }
-
-        // prevent ranges from being MediaTypes
-        __mime.test_assert_asterisks();
     })
 }
 
