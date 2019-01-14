@@ -133,6 +133,23 @@ impl Mime {
     }
 
     #[inline]
+    pub fn without_params(self) -> Self {
+        let semicolon = match self.semicolon() {
+            None => return self,
+            Some(i) => i,
+        };
+
+        let mut mtype = self;
+        mtype.params = ParamSource::None;
+        mtype.source = Atoms::intern(
+            &mtype.source.as_ref()[..semicolon],
+            mtype.slash,
+            InternParams::None,
+        );
+        mtype
+    }
+
+    #[inline]
     fn semicolon(&self) -> Option<usize> {
         match self.params {
             ParamSource::Utf8(i) |
