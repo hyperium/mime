@@ -516,8 +516,9 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 vec.push((name, value));
             },
             ParamSource::None => {
-                if semicolon + 2 == name.0 && "charset".eq_ignore_ascii_case(&s[name.0 as usize .. name.1 as usize]) &&
-                    "utf-8".eq_ignore_ascii_case(&s[value.0 as usize .. value.1 as usize]) {
+                if semicolon + 2 == name.0 &&
+                    "charset".eq_ignore_ascii_case(&s[range(name)]) &&
+                    "utf-8".eq_ignore_ascii_case(&s[range(value)]) {
                     params = ParamSource::Utf8(semicolon);
                     continue 'params;
                 }
