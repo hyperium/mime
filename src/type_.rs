@@ -186,6 +186,26 @@ impl MediaType {
         self.mime.has_params()
     }
 
+    /// Transforms the media type into its non-parametrized form.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let utf8: mime::MediaType = "text/html+xml; charset=utf-8".parse().unwrap();
+    /// assert_eq!(utf8.has_params(), true);
+    ///
+    /// let plain = utf8.without_params();
+    /// assert_eq!(plain.has_params(), false);
+    ///
+    /// let xml: mime::MediaType = "text/html+xml".parse().unwrap();
+    /// assert_eq!(plain, xml);
+    /// ```
+    #[inline]
+    pub fn without_params(self) -> Self {
+        let mut mtype = self;
+        mtype.mime = mtype.mime.without_params();
+        mtype
+    }
 
     #[cfg(test)]
     pub(super) fn test_assert_asterisks(&self) {
