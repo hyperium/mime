@@ -340,6 +340,9 @@ mod tests {
 
         let many_params = MediaType::parse("text/plain; charset=utf-8; foo=bar").unwrap();
         assert!(text_any_utf8.matches(&many_params));
+
+        let text_plain = MediaRange::parse("text/plain").unwrap();
+        assert!(text_plain.matches(&many_params));
     }
 
     #[test]
