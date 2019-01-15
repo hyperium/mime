@@ -17,21 +17,27 @@ pub fn media_type(tokens: TokenStream) -> TokenStream {
         }
     };
 
-    let source = match mime.source {
-        mime_parse::Source::Atom(a, s) => quote! {
-            $crate::private::Source::Atom(#a, #s)
-        },
-        mime_parse::Source::Dynamic(s) => quote! {
+    let source = match mime.private_atom() {
+        0 => {
+            let s = mime.as_ref();
             // Atom 0 is a dynamic-but-still-static
-            $crate::private::Source::Atom(0, #s)
+            quote! {
+                $crate::private::Source::Atom(0, #s)
+            }
+        },
+        a => {
+            let s = mime.as_ref();
+            quote! {
+                $crate::private::Source::Atom(#a, #s)
+            }
         },
     };
-    let slash = mime.slash;
-    let plus = match mime.plus {
+    let slash = mime.private_subtype_offset();
+    let plus = match mime.private_suffix_offset() {
         Some(i) => quote! { ::std::option::Option::Some(#i) },
         None => quote! { ::std::option::Option::None },
     };
-    let params = match mime.params {
+    let params = match mime.private_params_source() {
         mime_parse::ParamSource::None => quote! { $crate::private::ParamSource::None },
         mime_parse::ParamSource::Utf8(sc) => quote! { $crate::private::ParamSource::Utf8(#sc) },
         mime_parse::ParamSource::One(sc, ((na, nz), (va, vz))) => quote! {
@@ -42,25 +48,24 @@ pub fn media_type(tokens: TokenStream) -> TokenStream {
 
     let out = quote! {
         unsafe {
-            $crate::MediaType::private_from_proc_macro($crate::private::Mime {
-                source: #source,
-                slash: #slash,
-                plus: #plus,
-                params: #params,
-            })
+            $crate::MediaType::private_from_proc_macro(
+                $crate::private::Mime::private_from_proc_macro(
+                    #source,
+                    #slash,
+                    #plus,
+                    #params,
+                )
+            )
         }
     };
     out.into()
 }
 
 fn parse_mime_lit(value: &str) -> Result<mime_parse::Mime, String> {
-    let mime = mime_parse::parse(
-        value,
-        mime_parse::CanRange::No,
-    );
+    let mime = mime_parse::Parser::cannot_range().parse(value);
 
     match mime {
-        Ok(mime) => match mime.params {
+        Ok(mime) => match mime.private_params_source() {
             mime_parse::ParamSource::None |
             mime_parse::ParamSource::Utf8(_) => Ok(mime),
             mime_parse::ParamSource::One(..) => Ok(mime),

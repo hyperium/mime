@@ -99,7 +99,7 @@ macro_rules! mime_constant_test {
         // check that parsing can intern constants
         match mime.params {
             ParamSource::None | ParamSource::Utf8(_) => {
-                let parsed = crate::parse($src, crate::CanRange::Yes).expect("parse const");
+                let parsed = crate::Parser::can_range().parse($src).expect("parse const");
                 match parsed.source {
                     Source::Atom(_, $src) => (),
                     Source::Atom(_, src) => {

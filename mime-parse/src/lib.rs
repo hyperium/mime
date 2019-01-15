@@ -13,12 +13,16 @@ pub mod constants;
 use self::constants::Atoms;
 use self::sealed::Sealed;
 
+pub struct Parser {
+    can_range: bool,
+}
+
 #[derive(Clone)]
 pub struct Mime {
-    pub source: Source,
-    pub slash: u16,
-    pub plus: Option<u16>,
-    pub params: ParamSource,
+    source: Source,
+    slash: u16,
+    plus: Option<u16>,
+    params: ParamSource,
 }
 
 #[derive(Clone)]
@@ -103,10 +107,20 @@ impl Mime {
         &self.source.as_ref()[self.slash as usize + 1..end]
     }
 
+    #[doc(hidden)]
+    pub fn private_subtype_offset(&self) -> u16 {
+        self.slash
+    }
+
     #[inline]
     pub fn suffix(&self) -> Option<&str> {
         let end = self.semicolon_or_end();
         self.plus.map(|idx| &self.source.as_ref()[idx as usize + 1..end])
+    }
+
+    #[doc(hidden)]
+    pub fn private_suffix_offset(&self) -> Option<u16> {
+        self.plus
     }
 
     #[inline]
@@ -125,6 +139,11 @@ impl Mime {
         };
 
         Params(inner)
+    }
+
+    #[doc(hidden)]
+    pub fn private_params_source(&self) -> &ParamSource {
+        &self.params
     }
 
     #[inline]
@@ -163,6 +182,11 @@ impl Mime {
     #[inline]
     fn semicolon_or_end(&self) -> usize {
         self.semicolon().unwrap_or_else(|| self.source.as_ref().len())
+    }
+
+    #[doc(hidden)]
+    pub fn private_atom(&self) -> u8 {
+        self.atom()
     }
 
     fn atom(&self) -> u8 {
@@ -207,21 +231,37 @@ impl Mime {
                 //OPTIMIZE: once the parser is rewritten and more modular
                 // we can use parts of the parser to parse the string without
                 // actually crating a mime, and use that for comparision
-                //
-                parse(s, CanRange::Yes)
+                Parser::can_range()
+                    .parse(s)
                     .map(|other_mime| {
                         self == &other_mime
                     })
                     .unwrap_or(false)
             }
         } else if self.has_params() {
-            parse(s, CanRange::Yes)
+            Parser::can_range()
+                .parse(s)
                 .map(|other_mime| {
                     self == &other_mime
                 })
                 .unwrap_or(false)
         } else {
             self.source.as_ref().eq_ignore_ascii_case(s)
+        }
+    }
+
+    #[doc(hidden)]
+    pub const unsafe fn private_from_proc_macro(
+        source: Source,
+        slash: u16,
+        plus: Option<u16>,
+        params: ParamSource,
+    ) -> Mime {
+        Mime {
+            source,
+            slash,
+            plus,
+            params,
         }
     }
 }
@@ -261,12 +301,6 @@ impl fmt::Display for Mime {
     }
 }
 
-#[derive(PartialEq)]
-pub enum CanRange {
-    Yes,
-    No,
-}
-
 #[inline]
 fn as_u16(i: usize) -> u16 {
     debug_assert!(i <= std::u16::MAX as usize, "as_u16 overflow");
@@ -278,19 +312,39 @@ fn range(index: (u16, u16)) -> std::ops::Range<usize> {
     index.0 as usize .. index.1 as usize
 }
 
-pub fn parse<P>(src: P, can_range: CanRange) -> Result<Mime, ParseError>
-where
-    P: Parse,
-{
+// ===== impl Parser =====
+
+impl Parser {
+    #[inline]
+    pub fn can_range() -> Self {
+        Parser {
+            can_range: true,
+        }
+    }
+
+    #[inline]
+    pub fn cannot_range() -> Self {
+        Parser {
+            can_range: false,
+        }
+    }
+
+    pub fn parse(&self, src: impl Parse) -> Result<Mime, ParseError> {
+        parse(self, src)
+    }
+}
+
+fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> {
     let s = src.as_str();
     if s.len() > std::u16::MAX as usize {
         return Err(ParseError::TooLong);
     }
 
     if s == "*/*" {
-        return match can_range {
-            CanRange::Yes => Ok(constants::STAR_STAR),
-            CanRange::No => Err(ParseError::InvalidRange),
+        return if opts.can_range {
+            Ok(constants::STAR_STAR)
+        } else {
+            Err(ParseError::InvalidRange)
         };
     }
 
@@ -326,7 +380,7 @@ where
                 break;
             },
 
-            Some((i, b'*')) if i == start && can_range == CanRange::Yes => {
+            Some((i, b'*')) if i == start && opts.can_range => {
                 // sublevel star can only be the first character, and the next
                 // must either be the end, or `;`
                 match iter.next() {

@@ -63,26 +63,13 @@ macro_rules! mime_constant_proc_macro_test {
         // Test proc macro matches constants
         #[cfg(feature = "macro")]
         {
-            let __mime = $id;
-            let __m = media_type!($src);
-            assert_eq!(__mime.mime.slash, __m.mime.slash);
-            assert_eq!(__mime.mime.plus, __m.mime.plus);
-            match __m.mime.source {
-                mime_parse::Source::Atom(_, $src) => (),
-                mime_parse::Source::Atom(_, src) => {
-                    panic!(
-                        "did not intern {:?} correctly: {:?}",
-                        $src,
-                        src,
-                    );
-                },
-                _ => {
-                    panic!(
-                        "did not intern an Atom {:?}",
-                        $src,
-                    );
-                }
-            }
+            let constant = $id;
+            let macroed = media_type!($src);
+            assert_eq!(constant.type_(), macroed.type_());
+            assert_eq!(constant.subtype(), macroed.subtype());
+            assert_eq!(constant.suffix(), macroed.suffix());
+            assert_ne!(macroed.mime.private_atom(), 0);
+            assert_eq!(constant.mime.private_atom(), macroed.mime.private_atom());
         }
     );
     (@MediaRange, $id:ident, $src:expr) => ();

@@ -69,7 +69,8 @@ impl MediaType {
     /// Returns an error if the source is not a valid media type.
     #[inline]
     pub fn parse(source: impl Parse) -> Result<Self, InvalidMime> {
-        mime_parse::parse(source, mime_parse::CanRange::No)
+        mime_parse::Parser::cannot_range()
+            .parse(source)
             .map(|mime| MediaType { mime })
             .map_err(|e| InvalidMime { inner: e })
     }
