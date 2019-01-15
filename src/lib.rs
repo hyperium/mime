@@ -5,7 +5,8 @@
 
 //! # MediaType and MediaRange
 //!
-//! The `mime` crate defines two major types for representing MIMEs:
+//! The `mime` crate defines two major types for representing MIMEs in HTTP
+//! contexts:
 //!
 //! - A [`MediaType`](MediaType) is a concrete description of some content,
 //!   such as `text/plain`.
