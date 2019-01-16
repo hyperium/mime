@@ -63,10 +63,27 @@ pub enum ParseError {
     MissingQuote,
     InvalidToken {
         pos: usize,
-        byte: u8,
+        byte: Byte,
     },
     InvalidRange,
     TooLong,
+}
+
+#[derive(Clone, Copy)]
+pub struct Byte(u8);
+
+impl fmt::Debug for Byte {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.0 {
+            b'\n' => f.write_str("'\\n'"),
+            b'\r' => f.write_str("'\\r'"),
+            b'\t' => f.write_str("'\\t'"),
+            b'\\' => f.write_str("'\\'"),
+            b'\0' => f.write_str("'\\0'"),
+            0x20...0x7f => write!(f, "'{}'", self.0 as char),
+            _ => write!(f, "'\\x{:02x}'", self.0),
+        }
+    }
 }
 
 impl Error for ParseError {
@@ -85,7 +102,7 @@ impl Error for ParseError {
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let ParseError::InvalidToken { pos, byte } = *self {
-            write!(f, "{}, {:X} at position {}", self.description(), byte, pos)
+            write!(f, "{}, {:?} at position {}", self.description(), byte, pos)
         } else {
             f.write_str(self.description())
         }
@@ -143,6 +160,10 @@ impl Mime {
     #[doc(hidden)]
     pub fn private_params_source(&self) -> &ParamSource {
         &self.params
+    }
+
+    pub fn param<'a>(&'a self, attr: &str) -> Option<&'a str> {
+        self.params().find(|e| attr == e.0).map(|e| e.1)
     }
 
     #[inline]

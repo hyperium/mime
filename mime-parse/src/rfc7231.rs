@@ -2,6 +2,7 @@ use crate::{
     as_u16,
     constants,
     Atoms,
+    Byte,
     InternParams,
     lower_ascii_with_params,
     Mime,
@@ -79,7 +80,7 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
             None => return Err(ParseError::MissingSlash), // EOF and no toplevel is no Mime
             Some((pos, byte)) => return Err(ParseError::InvalidToken {
                 pos: pos,
-                byte: byte,
+                byte: Byte(byte),
             }),
         };
     }
@@ -95,7 +96,10 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
                 start = i;
                 break;
             },
-
+            Some((i, b' ')) if i > start => {
+                start = i;
+                break;
+            },
             Some((i, b'*')) if i == start && opts.can_range => {
                 // sublevel star can only be the first character, and the next
                 // must either be the end, or `;`
@@ -112,7 +116,7 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
                     }),
                     Some((pos, byte)) => return Err(ParseError::InvalidToken {
                         pos,
-                        byte,
+                        byte: Byte(byte),
                     }),
                 }
             },
@@ -128,7 +132,7 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
             },
             Some((pos, byte)) => return Err(ParseError::InvalidToken {
                 pos: pos,
-                byte: byte,
+                byte: Byte(byte),
             })
         };
     }
@@ -141,13 +145,16 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
             // Getting here means there *was* a `;`, but then no parameters
             // after it... So let's just chop off the empty param list.
             debug_assert_ne!(s.len(), start);
-            debug_assert_eq!(s.as_bytes()[start], b';');
+            debug_assert!({
+                let b = s.as_bytes()[start];
+                b == b';' || b == b' '
+            });
             Atoms::intern(&s[..start], slash, InternParams::None)
         },
-        ParamSource::Utf8(semicolon) => Atoms::intern(s, slash, InternParams::Utf8(semicolon as usize)),
-        ParamSource::One(semicolon, a) => Source::Dynamic(lower_ascii_with_params(s, semicolon as usize, &[a])),
-        ParamSource::Two(semicolon, a, b) => Source::Dynamic(lower_ascii_with_params(s, semicolon as usize, &[a, b])),
-        ParamSource::Custom(semicolon, ref indices) => Source::Dynamic(lower_ascii_with_params(s, semicolon as usize, indices)),
+        ParamSource::Utf8(params_start) => Atoms::intern(s, slash, InternParams::Utf8(params_start as usize)),
+        ParamSource::One(params_start, a) => Source::Dynamic(lower_ascii_with_params(s, params_start as usize, &[a])),
+        ParamSource::Two(params_start, a, b) => Source::Dynamic(lower_ascii_with_params(s, params_start as usize, &[a, b])),
+        ParamSource::Custom(params_start, ref indices) => Source::Dynamic(lower_ascii_with_params(s, params_start as usize, indices)),
     };
 
     Ok(Mime {
@@ -160,7 +167,7 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
 
 
 fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut start: usize) -> Result<ParamSource, ParseError> {
-    let semicolon = as_u16(start);
+    let params_start = as_u16(start);
     start += 1;
     let mut params = ParamSource::None;
     'params: while start < s.len() {
@@ -168,7 +175,13 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
         // name
         'name: loop {
             match iter.next() {
+                // OWS
                 Some((i, b' ')) if i == start => {
+                    start = i + 1;
+                    continue 'params;
+                },
+                // empty param
+                Some((i, b';')) if i == start => {
                     start = i + 1;
                     continue 'params;
                 },
@@ -181,7 +194,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                 None => return Err(ParseError::MissingEqual),
                 Some((pos, byte)) => return Err(ParseError::InvalidToken {
                     pos: pos,
-                    byte: byte,
+                    byte: Byte(byte),
                 }),
             }
         }
@@ -199,7 +212,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                         Some((_, ch)) if is_restricted_quoted_char(ch) => (),
                         Some((pos, byte)) => return Err(ParseError::InvalidToken {
                             pos: pos,
-                            byte: byte,
+                            byte: Byte(byte),
                         }),
                         None => return Err(ParseError::MissingQuote),
                     }
@@ -208,6 +221,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                     match iter.next() {
                         Some((i, b'"')) if i > start => {
                             value = (as_u16(start), as_u16(i + 1));
+                            start = i + 1;
                             break 'value;
                         },
                         Some((_, b'\\')) => is_quoted_pair = true,
@@ -215,7 +229,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                         None => return Err(ParseError::MissingQuote),
                         Some((pos, byte)) => return Err(ParseError::InvalidToken {
                             pos: pos,
-                            byte: byte,
+                            byte: Byte(byte),
                         }),
                     }
                 }
@@ -226,6 +240,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                         start = i;
                     },
                     Some((_, c)) if is_token(c) => (),
+                    Some((i, b' ')) |
                     Some((i, b';')) if i > start => {
                         value = (as_u16(start), as_u16(i));
                         start = i + 1;
@@ -239,31 +254,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
 
                     Some((pos, byte)) => return Err(ParseError::InvalidToken {
                         pos: pos,
-                        byte: byte,
-                    }),
-                }
-            }
-        }
-
-        if is_quoted {
-            'ws: loop {
-                match iter.next() {
-                    Some((i, b';')) => {
-                        // next param
-                        start = i + 1;
-                        break 'ws;
-                    },
-                    Some((_, b' ')) => {
-                        // skip whitespace
-                    },
-                    None => {
-                        // eof
-                        start = s.len();
-                        break 'ws;
-                    },
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
-                        byte: byte,
+                        byte: Byte(byte),
                     }),
                 }
             }
@@ -274,7 +265,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                 let i = i + 2;
                 let charset = (i, "charset".len() as u16 + i);
                 let utf8 = (charset.1 + 1, charset.1 + "utf-8".len() as u16 + 1);
-                params = ParamSource::Two(semicolon, (charset, utf8), (name, value));
+                params = ParamSource::Two(params_start, (charset, utf8), (name, value));
             },
             ParamSource::One(sc, a) => {
                 params = ParamSource::Two(sc, a, (name, value));
@@ -286,13 +277,13 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                 vec.push((name, value));
             },
             ParamSource::None => {
-                if semicolon + 2 == name.0 &&
+                if params_start + 2 == name.0 &&
                     "charset".eq_ignore_ascii_case(&s[range(name)]) &&
                     "utf-8".eq_ignore_ascii_case(&s[range(value)]) {
-                    params = ParamSource::Utf8(semicolon);
+                    params = ParamSource::Utf8(params_start);
                     continue 'params;
                 }
-                params = ParamSource::One(semicolon, (name, value));
+                params = ParamSource::One(params_start, (name, value));
             },
         }
     }
@@ -331,30 +322,200 @@ fn is_restricted_quoted_char(c: u8) -> bool {
     c == 9 || (c > 31 && c != 127)
 }
 
-#[test]
-fn test_lookup_tables() {
-    for (i, &valid) in TOKEN_MAP.iter().enumerate() {
-        let i = i as u8;
-        let should = match i {
-            b'a'...b'z' |
-            b'A'...b'Z' |
-            b'0'...b'9' |
-            b'!' |
-            b'#' |
-            b'$' |
-            b'%' |
-            b'&' |
-            b'\'' |
-            b'+' |
-            b'-' |
-            b'.' |
-            b'^' |
-            b'_' |
-            b'`' |
-            b'|' |
-            b'~' => true,
-            _ => false
-        };
-        assert_eq!(valid, should, "{:?} ({}) should be {}", i as char, i, should);
+#[cfg(test)]
+mod tests {
+    fn parse(src: impl super::Parse) -> Result<super::Mime, super::ParseError> {
+        super::Parser::can_range().parse(src)
+    }
+
+    #[test]
+    fn test_lookup_tables() {
+        for (i, &valid) in super::TOKEN_MAP.iter().enumerate() {
+            let i = i as u8;
+            let should = match i {
+                b'a'...b'z' |
+                b'A'...b'Z' |
+                b'0'...b'9' |
+                b'!' |
+                b'#' |
+                b'$' |
+                b'%' |
+                b'&' |
+                b'\'' |
+                b'+' |
+                b'-' |
+                b'.' |
+                b'^' |
+                b'_' |
+                b'`' |
+                b'|' |
+                b'~' => true,
+                _ => false
+            };
+            assert_eq!(valid, should, "{:?} ({}) should be {}", i as char, i, should);
+        }
+    }
+
+    #[test]
+    fn text_plain() {
+        let mime = parse("text/plain").unwrap();
+        assert_eq!(mime.type_(), "text");
+        assert_eq!(mime.subtype(), "plain");
+        assert!(!mime.has_params());
+        assert_eq!(mime.as_ref(), "text/plain");
+    }
+
+    #[test]
+    fn text_plain_uppercase() {
+        let mime = parse("TEXT/PLAIN").unwrap();
+        assert_eq!(mime.type_(), "text");
+        assert_eq!(mime.subtype(), "plain");
+        assert!(!mime.has_params());
+        assert_eq!(mime.as_ref(), "text/plain");
+    }
+
+    #[test]
+    fn text_plain_charset_utf8() {
+        let mime = parse("text/plain; charset=utf-8").unwrap();
+        assert_eq!(mime.type_(), "text");
+        assert_eq!(mime.subtype(), "plain");
+        assert_eq!(mime.param("charset"), Some("utf-8"));
+        assert_eq!(mime.as_ref(), "text/plain; charset=utf-8");
+    }
+
+    #[test]
+    fn text_plain_charset_utf8_uppercase() {
+        let mime = parse("TEXT/PLAIN; CHARSET=UTF-8").unwrap();
+        assert_eq!(mime.type_(), "text");
+        assert_eq!(mime.subtype(), "plain");
+        assert_eq!(mime.param("charset"), Some("utf-8"));
+        assert_eq!(mime.as_ref(), "text/plain; charset=utf-8");
+    }
+
+    #[test]
+    fn text_plain_charset_utf8_quoted() {
+        let mime = parse("text/plain; charset=\"utf-8\"").unwrap();
+        assert_eq!(mime.type_(), "text");
+        assert_eq!(mime.subtype(), "plain");
+        assert_eq!(mime.param("charset"), Some("\"utf-8\""));
+        assert_eq!(mime.as_ref(), "text/plain; charset=\"utf-8\"");
+    }
+
+    #[test]
+    fn text_plain_charset_utf8_extra() {
+        let mime = parse("text/plain; charset=utf-8; foo=bar").unwrap();
+        assert_eq!(mime.type_(), "text");
+        assert_eq!(mime.subtype(), "plain");
+        assert_eq!(mime.param("charset"), Some("utf-8"));
+        assert_eq!(mime.param("foo"), Some("bar"));
+        assert_eq!(mime.as_ref(), "text/plain; charset=utf-8; foo=bar");
+    }
+
+    #[test]
+    fn text_plain_charset_utf8_extra_uppercase() {
+        let mime = parse("TEXT/PLAIN; CHARSET=UTF-8; FOO=BAR").unwrap();
+        assert_eq!(mime.type_(), "text");
+        assert_eq!(mime.subtype(), "plain");
+        assert_eq!(mime.param("charset"), Some("utf-8"));
+        assert_eq!(mime.param("foo"), Some("BAR"));
+        assert_eq!(mime.as_ref(), "text/plain; charset=utf-8; foo=BAR");
+    }
+
+    #[test]
+    fn charset_utf8_extra_spaces() {
+        let mime = parse("text/plain  ;  charset=utf-8  ;  foo=bar").unwrap();
+        assert_eq!(mime.type_(), "text");
+        assert_eq!(mime.subtype(), "plain");
+        assert_eq!(mime.param("charset"), Some("utf-8"));
+        assert_eq!(mime.param("foo"), Some("bar"));
+        assert_eq!(mime.as_ref(), "text/plain  ;  charset=utf-8  ;  foo=bar");
+    }
+
+    #[test]
+    fn subtype_space_before_params() {
+        let mime = parse("text/plain ; charset=utf-8").unwrap();
+        assert_eq!(mime.type_(), "text");
+        assert_eq!(mime.subtype(), "plain");
+        assert_eq!(mime.param("charset"), Some("utf-8"));
+    }
+
+    #[test]
+    fn params_space_before_semi() {
+        let mime = parse("text/plain; charset=utf-8 ; foo=bar").unwrap();
+        assert_eq!(mime.type_(), "text");
+        assert_eq!(mime.subtype(), "plain");
+        assert_eq!(mime.param("charset"), Some("utf-8"));
+    }
+
+    #[test]
+    fn param_value_empty_quotes() {
+        let mime = parse("audio/wave; codecs=\"\"").unwrap();
+        assert_eq!(mime.as_ref(), "audio/wave; codecs=\"\"");
+    }
+
+    #[test]
+    fn semi_colon_but_empty_params() {
+        static CASES: &'static [&'static str] = &[
+            "text/event-stream;",
+            "text/event-stream; ",
+            "text/event-stream;       ",
+            "text/event-stream ; ",
+        ];
+
+        for &case in CASES {
+            let mime = parse(case).expect(case);
+            assert_eq!(mime.type_(), "text", "case = {:?}", case);
+            assert_eq!(mime.subtype(), "event-stream", "case = {:?}", case);
+            assert!(!mime.has_params(), "case = {:?}", case);
+            assert_eq!(mime.as_ref(), "text/event-stream", "case = {:?}", case);
+        }
+    }
+
+    // parse errors
+
+    #[test]
+    fn error_type_spaces() {
+        parse("te xt/plain").unwrap_err();
+    }
+
+
+    #[test]
+    fn error_type_lf() {
+        parse("te\nxt/plain").unwrap_err();
+    }
+
+    #[test]
+    fn error_type_cr() {
+        parse("te\rxt/plain").unwrap_err();
+    }
+
+    #[test]
+    fn error_subtype_spaces() {
+        parse("text/plai n").unwrap_err();
+    }
+
+    #[test]
+    fn error_subtype_crlf() {
+        parse("text/\r\nplain").unwrap_err();
+    }
+
+    #[test]
+    fn error_param_name_crlf() {
+        parse("text/plain;\r\ncharset=utf-8").unwrap_err();
+    }
+
+    #[test]
+    fn error_param_value_quoted_crlf() {
+        parse("text/plain;charset=\"\r\nutf-8\"").unwrap_err();
+    }
+
+    #[test]
+    fn error_param_space_before_equals() {
+        parse("text/plain; charset =utf-8").unwrap_err();
+    }
+
+    #[test]
+    fn error_param_space_after_equals() {
+        parse("text/plain; charset= utf-8").unwrap_err();
     }
 }
