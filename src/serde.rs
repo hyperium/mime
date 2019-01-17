@@ -46,22 +46,3 @@ macro_rules! serde_impl {
 
 serde_impl!(MediaType);
 serde_impl!(MediaRange);
-
-#[cfg(test)]
-mod tests {
-    use serde_test::{Token, assert_tokens};
-
-    #[test]
-    fn media_type_ser_de() {
-        assert_tokens(&crate::TEXT_PLAIN, &[
-            Token::Str("text/plain"),
-        ]);
-    }
-
-    #[test]
-    fn media_range_ser_de() {
-        assert_tokens(&crate::TEXT_STAR, &[
-            Token::Str("text/*"),
-        ]);
-    }
-}
