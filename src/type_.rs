@@ -49,7 +49,7 @@ use crate::{InvalidMime, Value};
 /// A `MediaType` represents an exact format type. The HTTP `Accept` header
 /// can include "media ranges", which can match multiple media types. Those
 /// "media ranges" should be represented as [`MediaRange`](super::MediaRange).
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct MediaType {
     pub(super) mime: Mime,
 }
@@ -138,7 +138,7 @@ impl MediaType {
     /// assert_eq!(mime.param(mime::BOUNDARY).unwrap(), "ABCDEFG");
     /// ```
     pub fn param<'a>(&'a self, attr: &str) -> Option<Value<'a>> {
-        self.params().find(|e| attr == e.0).map(|e| e.1)
+        crate::value::param(&self.mime, attr)
     }
 
 
@@ -165,10 +165,7 @@ impl MediaType {
     /// ```
     #[inline]
     pub fn params(&self) -> impl Iterator<Item = (&str, Value)> {
-        self.mime.params().map(|(n, v)| {
-            let value = Value::new(v).for_name(n);
-            (n, value)
-        })
+        crate::value::params(&self.mime)
     }
 
     /// Returns true if the media type has at last one parameter.
@@ -192,20 +189,20 @@ impl MediaType {
     /// # Example
     ///
     /// ```
-    /// let utf8: mime::MediaType = "text/html+xml; charset=utf-8".parse().unwrap();
-    /// assert_eq!(utf8.has_params(), true);
+    /// use mime::MediaType;
     ///
-    /// let plain = utf8.without_params();
-    /// assert_eq!(plain.has_params(), false);
+    /// let html_xml_utf8 = MediaType::parse("text/html+xml; charset=utf-8").unwrap();
+    /// assert!(html_xml_utf8.has_params());
     ///
-    /// let xml: mime::MediaType = "text/html+xml".parse().unwrap();
-    /// assert_eq!(plain, xml);
+    /// let html_xml = html_xml_utf8.without_params();
+    /// assert!(!html_xml.has_params());
+    ///
+    /// assert_eq!(html_xml, "text/html+xml");
     /// ```
     #[inline]
-    pub fn without_params(self) -> Self {
-        let mut mtype = self;
-        mtype.mime = mtype.mime.without_params();
-        mtype
+    pub fn without_params(mut self) -> Self {
+        self.mime = self.mime.without_params();
+        self
     }
 
     #[cfg(test)]
@@ -214,9 +211,15 @@ impl MediaType {
     }
 }
 
+impl PartialEq for MediaType {
+    fn eq(&self, other: &MediaType) -> bool {
+        crate::cmp::mime_eq(&self.mime, &other.mime)
+    }
+}
+
 impl PartialEq<str> for MediaType {
     fn eq(&self, s: &str) -> bool {
-        self.mime.eq_str(s)
+        crate::cmp::str_eq(&self.mime, s)
     }
 }
 
@@ -518,6 +521,14 @@ mod tests {
         MediaType::parse("*/*").expect_err("star/star");
         MediaType::parse("image/*").expect_err("image/star");
         MediaType::parse("text/*; charset=utf-8; q=0.9").expect_err("text/star;q");
+    }
+
+    #[test]
+    fn test_cmp_params_not_equal() {
+        let mime1 = MediaType::parse("text/plain; aaa=bbb").unwrap();
+        let mime2 = MediaType::parse("text/plain; ccc=ddd").unwrap();
+
+        assert_ne!(mime1, mime2);
     }
 }
 

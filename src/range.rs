@@ -32,7 +32,7 @@ use crate::{InvalidMime, MediaType, Value};
 ///     }
 /// }
 /// ```
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct MediaRange {
     pub(super) mime: Mime,
 }
@@ -174,7 +174,7 @@ impl MediaRange {
     /// assert_eq!(range.param("boundary"), None);
     /// ```
     pub fn param<'a>(&'a self, attr: &str) -> Option<Value<'a>> {
-        self.params().find(|e| attr == e.0).map(|e| e.1)
+        crate::value::param(&self.mime, attr)
     }
 
     /// Returns an iterator over the parameters.
@@ -200,10 +200,7 @@ impl MediaRange {
     /// ```
     #[inline]
     pub fn params(&self) -> impl Iterator<Item = (&str, Value)> {
-        self.mime.params().map(|(n, v)| {
-            let value = Value::new(v).for_name(n);
-            (n, value)
-        })
+        crate::value::params(&self.mime)
     }
 
     /// Returns true if the media type has at last one parameter.
@@ -244,9 +241,15 @@ impl From<MediaType> for MediaRange {
     }
 }
 
+impl PartialEq for MediaRange {
+    fn eq(&self, other: &MediaRange) -> bool {
+        crate::cmp::mime_eq(&self.mime, &other.mime)
+    }
+}
+
 impl PartialEq<str> for MediaRange {
     fn eq(&self, s: &str) -> bool {
-        self.mime.eq_str(s)
+        crate::cmp::str_eq(&self.mime, s)
     }
 }
 

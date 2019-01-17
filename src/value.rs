@@ -2,6 +2,7 @@ use std::cmp::PartialEq;
 use std::fmt;
 use std::borrow::Cow;
 
+use mime_parse::Mime;
 use quoted_string::{self, ContentChars, AsciiCaseInsensitiveEq};
 
 /// a `Value` usable for a charset parameter.
@@ -22,25 +23,32 @@ pub const UTF_8: Value = Value {
 #[derive(Clone, Copy)]
 pub struct Value<'a> {
     source: &'a str,
-    ascii_case_insensitive: bool
+    ascii_case_insensitive: bool,
 }
 
+pub(crate) fn params(mime: &Mime) -> impl Iterator<Item = (&str, Value)> {
+    mime.params().map(|(n, v)| {
+        let value = Value::new(v).for_name(n);
+        (n, value)
+    })
+}
+
+pub(crate) fn param<'a>(mime: &'a Mime, key: &str) -> Option<Value<'a>> {
+    params(mime).find(|e| key == e.0).map(|e| e.1)
+}
 
 impl<'a> Value<'a> {
-    #[inline]
-    pub(crate) fn new(source: &'a str) -> Self {
+    fn new(source: &'a str) -> Self {
         Value {
             source,
             ascii_case_insensitive: false,
         }
     }
 
-    #[inline]
-    pub(crate) fn for_name(self, name: &str) -> Self {
-        Value {
-            source: self.source,
-            ascii_case_insensitive: name == crate::CHARSET,
-        }
+    fn for_name(mut self, name: &str) -> Self {
+        debug_assert!(crate::is_ascii_lowercase(name));
+        self.ascii_case_insensitive = name == crate::CHARSET;
+        self
     }
 
     /// Returns the underlying representation.

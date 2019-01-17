@@ -215,68 +215,8 @@ impl Mime {
         }
     }
 
-    fn eq_type_subtype(&self, other: &Mime) -> bool {
-        let left = &self.source.as_ref()[..self.semicolon_or_end()];
-        let right = &other.source.as_ref()[..other.semicolon_or_end()];
-
-        left == right
-    }
-
-    fn eq_of_params(&self, other: &Mime) -> bool {
-        use self::FastEqRes::*;
-        // if ParamInner is None or Utf8 we can determine equality faster
-        match self.params().fast_eq(&other.params()) {
-            Equals => return true,
-            NotEquals => return false,
-            Undetermined => {},
-        }
-
-        // params size_hint is exact, so if either has more params, they
-        // aren't equal.
-        if self.params().size_hint() != other.params().size_hint() {
-            return false;
-        }
-
-        // Order doesn't matter, so we must check simply check that each param
-        // exists in both.
-        for (name, value) in self.params() {
-            if other.param(name) != Some(value) {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    pub fn eq_str(&self, s: &str) -> bool {
-        if let ParamSource::Utf8(..) = self.params {
-            // this only works because ParamSource::Utf8 is only used if
-            // its "<type>/<subtype>; charset=utf-8" them moment spaces are
-            // set differently or charset is quoted or is utf8 it will not
-            // use ParamSource::Utf8
-            if self.source.as_ref().len() == s.len() {
-                self.source.as_ref().eq_ignore_ascii_case(s)
-            } else {
-                //OPTIMIZE: once the parser is rewritten and more modular
-                // we can use parts of the parser to parse the string without
-                // actually crating a mime, and use that for comparision
-                Parser::can_range()
-                    .parse(s)
-                    .map(|other_mime| {
-                        self == &other_mime
-                    })
-                    .unwrap_or(false)
-            }
-        } else if self.has_params() {
-            Parser::can_range()
-                .parse(s)
-                .map(|other_mime| {
-                    self == &other_mime
-                })
-                .unwrap_or(false)
-        } else {
-            self.source.as_ref().eq_ignore_ascii_case(s)
-        }
+    pub fn essence(&self) -> &str {
+        &self.source.as_ref()[..self.semicolon_or_end()]
     }
 
     #[doc(hidden)]
@@ -291,20 +231,6 @@ impl Mime {
             slash,
             plus,
             params,
-        }
-    }
-}
-
-impl PartialEq for Mime {
-    #[inline]
-    fn eq(&self, other: &Mime) -> bool {
-        match (self.atom(), other.atom()) {
-            // If either atom is 0, it is "dynamic" and needs to be compared
-            // slowly...
-            (0, _) | (_, 0) => {
-                self.eq_type_subtype(other) && self.eq_of_params(other)
-            },
-            (a, b) => a == b,
         }
     }
 }
@@ -402,32 +328,12 @@ enum Inline {
     Two(IndexedPair, IndexedPair),
 }
 
-enum FastEqRes {
-    Equals,
-    NotEquals,
-    Undetermined
-}
-
 /// An iterator over the parameters of a MIME.
 pub struct Params<'a>(ParamsInner<'a>);
 
 impl<'a> fmt::Debug for Params<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Params").finish()
-    }
-}
-
-impl<'a> Params<'a> {
-    fn fast_eq<'b>(&self, other: &Params<'b>) -> FastEqRes {
-        match (&self.0, &other.0) {
-            (&ParamsInner::None, &ParamsInner::None) |
-            (&ParamsInner::Utf8, &ParamsInner::Utf8) => FastEqRes::Equals,
-
-            (&ParamsInner::None, _) |
-            (_, &ParamsInner::None)  => FastEqRes::NotEquals,
-
-            _ => FastEqRes::Undetermined,
-        }
     }
 }
 

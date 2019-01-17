@@ -113,6 +113,7 @@ pub use self::range::MediaRange;
 pub use self::type_::MediaType;
 pub use self::value::{Value, UTF_8};
 
+mod cmp;
 mod constants;
 mod error;
 #[cfg(feature = "macro")]
@@ -142,4 +143,9 @@ fn _assert_traits() {
 pub mod private {
     #[doc(hidden)]
     pub use mime_parse::{Mime, ParamSource, Source};
+}
+
+#[cfg_attr(not(debug_assertions), allow(unused))]
+fn is_ascii_lowercase(s: &str) -> bool {
+    !s.as_bytes().iter().any(u8::is_ascii_uppercase)
 }
