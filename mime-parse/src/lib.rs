@@ -2,7 +2,6 @@
 //!
 //! Nothing to see here. Move along.
 
-use std::collections::HashMap;
 use std::error::Error;
 use std::{fmt, slice};
 
@@ -232,11 +231,21 @@ impl Mime {
             Undetermined => {},
         }
 
-        // OPTIMIZE: some on-stack structure might be better suited as most
-        // media types do not have many parameters
-        let my_params = self.params().collect::<HashMap<_,_>>();
-        let other_params = self.params().collect::<HashMap<_,_>>();
-        my_params == other_params
+        // params size_hint is exact, so if either has more params, they
+        // aren't equal.
+        if self.params().size_hint() != other.params().size_hint() {
+            return false;
+        }
+
+        // Order doesn't matter, so we must check simply check that each param
+        // exists in both.
+        for (name, value) in self.params() {
+            if other.param(name) != Some(value) {
+                return false;
+            }
+        }
+
+        true
     }
 
     pub fn eq_str(&self, s: &str) -> bool {

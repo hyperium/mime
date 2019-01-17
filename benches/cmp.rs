@@ -26,6 +26,16 @@ fn bench_eq_parsed_dynamic(b: &mut Bencher) {
 }
 
 #[bench]
+fn bench_eq_multiple_parameters(b: &mut Bencher) {
+    let mime1 = "text/foo; aaa=bbb; ccc=ddd; eee=fff; ggg=hhh".parse::<MediaType>().unwrap();
+    let mime2 =  mime1.clone();
+    b.bytes = mime1.as_ref().len() as u64;
+    b.iter(|| {
+        assert_eq!(mime1, mime2);
+    })
+}
+
+#[bench]
 fn bench_eq_consts(b: &mut Bencher) {
     let mime = TEXT_PLAIN_UTF_8;
     b.bytes = mime.as_ref().len() as u64;
