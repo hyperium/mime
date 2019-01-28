@@ -102,6 +102,7 @@ mimes! {
     FONT_WOFF2, "font/woff2";
 
     APPLICATION_JSON, "application/json";
+    APPLICATION_MANIFEST_JSON, "application/manifest+json";
     APPLICATION_JAVASCRIPT, "application/javascript";
     APPLICATION_JAVASCRIPT_UTF_8, "application/javascript; charset=utf-8";
     APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded";

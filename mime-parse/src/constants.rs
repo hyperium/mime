@@ -459,6 +459,7 @@ mimes! {
     FONT_WOFF2, "font/woff2", 4;
 
     APPLICATION_JSON, "application/json", 11;
+    APPLICATION_MANIFEST_JSON, "application/manifest+json", 11, Some(20);
     APPLICATION_JAVASCRIPT, "application/javascript", 11;
     APPLICATION_JAVASCRIPT_UTF_8, "application/javascript; charset=utf-8", 11, None, 22;
     APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded", 11;
