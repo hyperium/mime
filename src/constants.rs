@@ -109,6 +109,8 @@ mimes! {
     APPLICATION_MSGPACK, "application/msgpack";
     APPLICATION_PDF, "application/pdf";
     APPLICATION_DNS, "application/dns-message";
+    APPLICATION_PGP_ENCRYPTED, "application/pgp-encrypted";
+    APPLICATION_PGP_SIGNATURE, "application/pgp-signature";
 
     // media-ranges
     @ MediaRange:
