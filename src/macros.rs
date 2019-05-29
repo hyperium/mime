@@ -122,6 +122,15 @@ mod tests {
     }
 
     #[test]
+    fn multipart_type_protocol_param() {
+        let me = media_type!("multipart/encrypted; protocol=\"application/pgp-encrypted\"");
+        assert_eq!(me.type_(), MULTIPART);
+        assert_eq!(me.subtype(), ENCRYPTED);
+        assert_eq!(me.param("protocol").unwrap(), &APPLICATION_PGP_ENCRYPTED.to_string()[..]);
+    }
+
+
+    #[test]
     fn media_type_lowercase() {
         let mt = media_type!("MULTIPART/FORM-DATA; BOUNDARY=AbCd");
         assert_eq!(mt.to_string(), "multipart/form-data; boundary=AbCd");
