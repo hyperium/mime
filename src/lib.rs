@@ -29,8 +29,6 @@
 #![deny(missing_debug_implementations)]
 
 
-extern crate unicase;
-
 use std::cmp::Ordering;
 use std::error::Error;
 use std::fmt;
@@ -233,24 +231,33 @@ impl Mime {
 
 // Mime ============
 
+fn eq_ascii(a: &str, b: &str) -> bool {
+    // str::eq_ignore_ascii_case didn't stabilize until Rust 1.23.
+    // So while our MSRV is 1.15, gotta import this trait.
+    #[allow(deprecated, unused)]
+    use std::ascii::AsciiExt;
+
+    a.eq_ignore_ascii_case(b)
+}
+
 fn mime_eq_str(mime: &Mime, s: &str) -> bool {
     if let ParamSource::Utf8(semicolon) = mime.params {
         if mime.source.as_ref().len() == s.len() {
-            unicase::eq_ascii(mime.source.as_ref(), s)
+            eq_ascii(mime.source.as_ref(), s)
         } else {
             params_eq(semicolon, mime.source.as_ref(), s)
         }
     } else if let Some(semicolon) = mime.semicolon() {
         params_eq(semicolon, mime.source.as_ref(), s)
     } else {
-        unicase::eq_ascii(mime.source.as_ref(), s)
+        eq_ascii(mime.source.as_ref(), s)
     }
 }
 
 fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
     if b.len() < semicolon + 1 {
         false
-    } else if !unicase::eq_ascii(&a[..semicolon], &b[..semicolon]) {
+    } else if !eq_ascii(&a[..semicolon], &b[..semicolon]) {
         false
     } else {
         // gotta check for quotes, LWS, and for case senstive names
@@ -280,7 +287,7 @@ fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
                         #[allow(deprecated)]
                         { b[..b_idx].trim_left() }
                     };
-                    if !unicase::eq_ascii(a_name, b_name) {
+                    if !eq_ascii(a_name, b_name) {
                         return false;
                     }
                     sensitive = a_name != CHARSET;
@@ -327,7 +334,7 @@ fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
             };
 
             if sensitive {
-                if !unicase::eq_ascii(&a[..a_end], &b[..b_end]) {
+                if !eq_ascii(&a[..a_end], &b[..b_end]) {
                     return false;
                 }
             } else {
@@ -349,7 +356,7 @@ impl PartialEq for Mime {
             // This could optimize for when there are no customs parameters.
             // Any parsed mime has already been lowercased, so if there aren't
             // any parameters that are case sensistive, this can skip the
-            // unicase::eq_ascii, and just use a memcmp instead.
+            // eq_ascii, and just use a memcmp instead.
             (0, _) |
             (_, 0) => mime_eq_str(self, other.source.as_ref()),
             (a, b) => a == b,
@@ -424,7 +431,7 @@ impl fmt::Display for Mime {
 
 fn name_eq_str(name: &Name, s: &str) -> bool {
     if name.insensitive {
-        unicase::eq_ascii(name.source, s)
+        eq_ascii(name.source, s)
     } else {
         name.source == s
     }
