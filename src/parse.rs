@@ -325,6 +325,7 @@ fn is_restricted_quoted_char(c: u8) -> bool {
 }
 
 #[test]
+#[allow(warnings)] // ... ranges deprecated
 fn test_lookup_tables() {
     for (i, &valid) in TOKEN_MAP.iter().enumerate() {
         let i = i as u8;
