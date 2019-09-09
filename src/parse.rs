@@ -95,7 +95,7 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
     }
 
     // params
-    let params = try!(params_from_str(s, &mut iter, start));
+    let params = params_from_str(s, &mut iter, start)?;
 
     let src = match params {
         ParamSource::Utf8(_)  => s.to_ascii_lowercase(),
