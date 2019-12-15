@@ -10,13 +10,10 @@ pub struct InvalidMime {
 }
 
 impl Error for InvalidMime {
-    fn description(&self) -> &str {
-        "invalid MIME"
-    }
 }
 
 impl fmt::Display for InvalidMime {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}: {}", self.description(), self.inner)
+        write!(f, "invalid MIME: {}", self.inner)
     }
 }
