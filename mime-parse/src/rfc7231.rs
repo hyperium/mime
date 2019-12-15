@@ -333,9 +333,9 @@ mod tests {
         for (i, &valid) in super::TOKEN_MAP.iter().enumerate() {
             let i = i as u8;
             let should = match i {
-                b'a'...b'z' |
-                b'A'...b'Z' |
-                b'0'...b'9' |
+                b'a'..=b'z' |
+                b'A'..=b'Z' |
+                b'0'..=b'9' |
                 b'!' |
                 b'#' |
                 b'$' |
