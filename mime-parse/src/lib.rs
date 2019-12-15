@@ -79,7 +79,7 @@ impl fmt::Debug for Byte {
             b'\t' => f.write_str("'\\t'"),
             b'\\' => f.write_str("'\\'"),
             b'\0' => f.write_str("'\\0'"),
-            0x20...0x7f => write!(f, "'{}'", self.0 as char),
+            0x20..=0x7f => write!(f, "'{}'", self.0 as char),
             _ => write!(f, "'\\x{:02x}'", self.0),
         }
     }
