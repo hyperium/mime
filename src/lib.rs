@@ -212,6 +212,15 @@ impl Mime {
         Params(inner)
     }
 
+    /// Return a `&str` of the Mime's ["essence"][essense].
+    ///
+    /// [essence]: https://mimesniff.spec.whatwg.org/#mime-type-essence
+    pub fn essence_str(&self) -> &str {
+        let end = self.semicolon().unwrap_or(self.source.as_ref().len());
+
+        &self.source.as_ref()[..end]
+    }
+
     #[cfg(test)]
     fn has_params(&self) -> bool {
         match self.params {
@@ -917,5 +926,12 @@ mod tests {
         assert_eq!("ABC", param);
         assert_ne!(param, "abc");
         assert_ne!("abc", param);
+    }
+
+    #[test]
+    fn test_essence_str() {
+        assert_eq!(TEXT_PLAIN.essence_str(), "text/plain");
+        assert_eq!(TEXT_PLAIN_UTF_8.essence_str(), "text/plain");
+        assert_eq!(IMAGE_SVG.essence_str(), "image/svg+xml");
     }
 }
