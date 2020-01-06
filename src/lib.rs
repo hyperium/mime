@@ -73,15 +73,23 @@ pub struct FromStrError {
     inner: parse::ParseError,
 }
 
-impl Error for FromStrError {
-    fn description(&self) -> &str {
-        "an error occurred while parsing a MIME type"
+impl FromStrError {
+    fn s(&self) -> &str {
+        "mime parse error"
     }
 }
 
 impl fmt::Display for FromStrError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}: {}", self.description(), self.inner)
+        write!(f, "{}: {}", self.s(), self.inner)
+    }
+}
+
+impl Error for FromStrError {
+    // Minimum Rust is 1.15, Error::description was still required then
+    #[allow(deprecated)]
+    fn description(&self) -> &str {
+        self.s()
     }
 }
 

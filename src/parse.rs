@@ -18,8 +18,8 @@ pub enum ParseError {
     },
 }
 
-impl Error for ParseError {
-    fn description(&self) -> &str {
+impl ParseError {
+    fn s(&self) -> &str {
         use self::ParseError::*;
 
         match *self {
@@ -34,10 +34,18 @@ impl Error for ParseError {
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let ParseError::InvalidToken { pos, byte } = *self {
-            write!(f, "{}, {:X} at position {}", self.description(), byte, pos)
+            write!(f, "{}, {:X} at position {}", self.s(), byte, pos)
         } else {
-            f.write_str(self.description())
+            f.write_str(self.s())
         }
+    }
+}
+
+impl Error for ParseError {
+    // Minimum Rust is 1.15, Error::description was still required then
+    #[allow(deprecated)]
+    fn description(&self) -> &str {
+        self.s()
     }
 }
 
