@@ -212,7 +212,7 @@ impl Mime {
         Params(inner)
     }
 
-    /// Return a `&str` of the Mime's ["essence"][essense].
+    /// Return a `&str` of the Mime's ["essence"][essence].
     ///
     /// [essence]: https://mimesniff.spec.whatwg.org/#mime-type-essence
     pub fn essence_str(&self) -> &str {
