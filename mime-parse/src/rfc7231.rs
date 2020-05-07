@@ -168,12 +168,22 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
 
 fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut start: usize) -> Result<ParamSource, ParseError> {
     let params_start = as_u16(start);
-    start += 1;
     let mut params = ParamSource::None;
+    let mut iter = iter.peekable();
+
+    let mut seen_semicolon = s.as_bytes().get(start) == Some(&b';');
+    start += 1;
     'params: while start < s.len() {
         let name;
         // name
         'name: loop {
+            // The name contains a ;, it's invalid so skip it
+            if let Some(&(i, b';')) = iter.peek() {
+                start = i + 1;
+                iter.next();
+                continue 'params;
+            }
+
             match iter.next() {
                 // OWS
                 Some((i, b' ')) if i == start => {
@@ -183,6 +193,8 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                 // empty param
                 Some((i, b';')) if i == start => {
                     start = i + 1;
+                    println!("semi");
+                    seen_semicolon = true;
                     continue 'params;
                 },
                 Some((_, c)) if is_token(c) => (),
@@ -191,7 +203,16 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                     start = i + 1;
                     break 'name;
                 },
-                None => return Err(ParseError::MissingEqual),
+                // EOS without ending the name, ignore that param
+                None => {
+                    if !seen_semicolon {
+                        return Err(ParseError::InvalidToken {
+                            pos: start,
+                            byte: Byte(*s.as_bytes().get(start).unwrap())
+                        });
+                    }
+                    break 'params
+                }
                 Some((pos, byte)) => return Err(ParseError::InvalidToken {
                     pos: pos,
                     byte: Byte(byte),
@@ -244,6 +265,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                     Some((i, b';')) if i > start => {
                         value = (as_u16(start), as_u16(i));
                         start = i + 1;
+                        seen_semicolon = true;
                         break 'value;
                     }
                     None => {
@@ -517,5 +539,28 @@ mod tests {
     #[test]
     fn error_param_space_after_equals() {
         parse("text/plain; charset= utf-8").unwrap_err();
+    }
+
+    #[test]
+    fn test_ignore_invalid_param() {
+        let mime1 = parse(r#"text/css;blah; foo=bar; bleh"#).unwrap();
+        let mime2 = parse(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1.params().into_iter().collect::<Vec<_>>(), mime2.params().into_iter().collect::<Vec<_>>());
+
+        let mime1 = parse(r#"text/css;blah"#).unwrap();
+        let mime2 = parse(r#"text/css"#).unwrap();
+        assert_eq!(mime1.params().into_iter().collect::<Vec<_>>(), mime2.params().into_iter().collect::<Vec<_>>());
+
+        let mime1 = parse(r#"text/css;blah; foo=bar"#).unwrap();
+        let mime2 = parse(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1.params().into_iter().collect::<Vec<_>>(), mime2.params().into_iter().collect::<Vec<_>>());
+
+        let mime1 = parse(r#"text/css;blah; foo=bar "#).unwrap();
+        let mime2 = parse(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1.params().into_iter().collect::<Vec<_>>(), mime2.params().into_iter().collect::<Vec<_>>());
+
+        let mime1 = parse(r#"text/css;blah; foo=bar; bleh;"#).unwrap();
+        let mime2 = parse(r#"text/css; foo=bar"#).unwrap();
+        assert_eq!(mime1.params().into_iter().collect::<Vec<_>>(), mime2.params().into_iter().collect::<Vec<_>>());
     }
 }
