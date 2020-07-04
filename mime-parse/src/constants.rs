@@ -170,6 +170,9 @@ impl Atoms {
             if sub == JAVASCRIPT {
                 return Atoms::APPLICATION_JAVASCRIPT_UTF_8;
             }
+            if sub == WWW_FORM_URLENCODED {
+                return Atoms::APPLICATION_WWW_FORM_URLENCODED_UTF_8;
+            }
         }
 
         Atoms::dynamic(s)
@@ -462,6 +465,7 @@ mimes! {
     APPLICATION_JAVASCRIPT, "application/javascript", 11;
     APPLICATION_JAVASCRIPT_UTF_8, "application/javascript; charset=utf-8", 11, None, 22;
     APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded", 11;
+    APPLICATION_WWW_FORM_URLENCODED_UTF_8, "application/x-www-form-urlencoded; charset=utf-8", 11, None, 33;
     APPLICATION_OCTET_STREAM, "application/octet-stream", 11;
     APPLICATION_MSGPACK, "application/msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
