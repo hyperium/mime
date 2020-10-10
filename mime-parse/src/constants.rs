@@ -305,6 +305,9 @@ impl Atoms {
                             if sub == PDF {
                                 return Atoms::APPLICATION_PDF;
                             }
+                            if sub == XML {
+                                return Atoms::APPLICATION_XML;
+                            }
                         }
                         4 => {
                             if sub == JSON {
@@ -466,6 +469,7 @@ mimes! {
     APPLICATION_MSGPACK, "application/msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
     APPLICATION_DNS, "application/dns-message", 11;
+    APPLICATION_XML, "application/xml", 11;
 
     // media-ranges
     //@ MediaRange:
