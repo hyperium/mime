@@ -15,7 +15,7 @@ pub struct Parser {
     can_range: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Mime {
     source: Source,
     slash: u16,
@@ -23,7 +23,7 @@ pub struct Mime {
     params: ParamSource,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum Source {
     Atom(u8, &'static str),
     Dynamic(String),
@@ -41,7 +41,7 @@ impl AsRef<str> for Source {
 type Indexed = (u16, u16);
 type IndexedPair = (Indexed, Indexed);
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum ParamSource {
     None,
     Utf8(u16),
