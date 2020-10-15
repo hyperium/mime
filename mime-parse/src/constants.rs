@@ -269,6 +269,9 @@ impl Atoms {
                             if sub == JPEG {
                                 return Atoms::IMAGE_JPEG;
                             }
+                            if sub == WEBP {
+                                return Atoms::IMAGE_WEBP;
+                            }
                         },
                         7 => {
                             if sub == SVG {
@@ -418,6 +421,7 @@ names! {
     BMP, "bmp";
     GIF, "gif";
     JPEG, "jpeg";
+    WEBP, "webp";
     PNG, "png";
     SVG, "svg+xml";
 
@@ -453,6 +457,7 @@ mimes! {
     IMAGE_GIF, "image/gif", 5;
     IMAGE_PNG, "image/png", 5;
     IMAGE_BMP, "image/bmp", 5;
+    IMAGE_WEBP, "image/webp", 5;
     IMAGE_SVG, "image/svg+xml", 5, Some(9);
 
     FONT_WOFF, "font/woff", 4;
