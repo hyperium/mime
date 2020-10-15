@@ -97,6 +97,7 @@ mimes! {
     IMAGE_PNG, "image/png";
     IMAGE_BMP, "image/bmp";
     IMAGE_WEBP, "image/webp";
+    IMAGE_AVIF, "image/avif";
     IMAGE_SVG, "image/svg+xml";
 
     FONT_WOFF, "font/woff";
