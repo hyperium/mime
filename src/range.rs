@@ -274,6 +274,8 @@ impl PartialEq<MediaRange> for str {
     }
 }
 
+impl Eq for MediaRange {}
+
 impl FromStr for MediaRange {
     type Err = InvalidMime;
 
