@@ -109,6 +109,7 @@ mimes! {
     APPLICATION_MSGPACK, "application/msgpack";
     APPLICATION_PDF, "application/pdf";
     APPLICATION_DNS, "application/dns-message";
+    APPLICATION_WASM, "application/wasm";
 
     // media-ranges
     @ MediaRange:
@@ -118,4 +119,3 @@ mimes! {
     VIDEO_STAR, "video/*";
     AUDIO_STAR, "audio/*";
 }
-
