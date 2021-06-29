@@ -108,6 +108,7 @@ mimes! {
     APPLICATION_OCTET_STREAM, "application/octet-stream";
     APPLICATION_MSGPACK, "application/msgpack";
     APPLICATION_PDF, "application/pdf";
+    APPLICATION_TOML, "application/toml";
     APPLICATION_DNS, "application/dns-message";
 
     // media-ranges
