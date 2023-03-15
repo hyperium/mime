@@ -47,6 +47,13 @@ pub struct Mime {
     params: ParamSource,
 }
 
+/// An iterator of parsed mime
+#[derive(Clone, Debug)]
+pub struct MimeIter<'a> {
+    pos: usize,
+    source: &'a str,
+}
+
 /// A section of a `Mime`.
 ///
 /// For instance, for the Mime `image/svg+xml`, it contains 3 `Name`s,

@@ -5,7 +5,7 @@ use std::fmt;
 use std::iter::Enumerate;
 use std::str::Bytes;
 
-use super::{Mime, Source, ParamSource, Indexed, CHARSET, UTF_8};
+use super::{Mime, MimeIter, Source, ParamSource, Indexed, CHARSET, UTF_8};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -46,6 +46,65 @@ impl Error for ParseError {
     #[allow(deprecated)]
     fn description(&self) -> &str {
         self.s()
+    }
+}
+
+impl<'a> MimeIter<'a> {
+    /// A new iterator over mimes or media types
+    pub fn new(s: &'a str) -> Self {
+        Self {
+            pos: 0,
+            source: s,
+        }
+    }
+}
+
+impl<'a> Iterator for MimeIter<'a> {
+    type Item = Result<Mime, &'a str>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let start = self.pos;
+        let len = self.source.bytes().len();
+
+        if start >= len {
+            return None
+        }
+
+        // Try parsing the whole remaining slice, until the end
+        match parse(&self.source[start ..len]) {
+            Ok(value) => {
+                self.pos = len;
+                Some(Ok(value))
+            }
+            Err(ParseError::InvalidToken { pos, .. }) => {
+                // The first token is immediately found to be wrong by `parse`. Skip it
+                if pos == 0 {
+                    self.pos += 1;
+                    return self.next()
+                }
+                let slice = &self.source[start .. start + pos];
+                // Try parsing the longest slice (until the first invalid token)
+                return match parse(slice) {
+                    Ok(mime) => {
+                        self.pos = start + pos + 1;
+                        Some(Ok(mime))
+                    }
+                    Err(_) => {
+                        if start + pos < len {
+                            // Skip this invalid slice,
+                            // try parsing the remaining slice in the next iteration
+                            self.pos = start + pos;
+                            Some(Err(slice))
+                        } else {
+                            None
+                        }
+                    }
+                }
+            }
+            // Do not process any other error condition: the slice is malformed and
+            // no character is found to be invalid: a character is missing
+            Err(_) => None,
+        }
     }
 }
 
@@ -360,4 +419,36 @@ fn test_lookup_tables() {
         };
         assert_eq!(valid, should, "{:?} ({}) should be {}", i as char, i, should);
     }
+}
+
+#[test]
+fn test_parse_iterator() {
+    let mut iter = MimeIter::new("application/json, application/json");
+    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(iter.next(), None);
+
+    let mut iter = MimeIter::new("application/json");
+    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(iter.next(), None);
+
+    let mut iter = MimeIter::new("application/json;  ");
+    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
+fn test_parse_iterator_invalid() {
+    let mut iter = MimeIter::new("application/json, invalid, application/json");
+    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(iter.next().unwrap().unwrap_err(), "invalid");
+    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
+fn test_parse_iterator_all_invalid() {
+    let mut iter = MimeIter::new("application/json, text/html");
+    assert_eq!(iter.next().unwrap().unwrap_err(), "application/json");
+    assert_eq!(iter.next(), None);
 }
