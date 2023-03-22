@@ -438,6 +438,7 @@ mimes! {
     TEXT_PLAIN_UTF_8, "text/plain; charset=utf-8", 4, None, 10;
     TEXT_HTML, "text/html", 4;
     TEXT_HTML_UTF_8, "text/html; charset=utf-8", 4, None, 9;
+    TEXT_CALENDAR, "text/calendar", 4;
     TEXT_CSS, "text/css", 4;
     TEXT_CSS_UTF_8, "text/css; charset=utf-8", 4, None, 8;
     TEXT_JAVASCRIPT, "text/javascript", 4;
