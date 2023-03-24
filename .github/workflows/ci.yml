@@ -1,0 +1,60 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  minrust: 1.16.0
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        rust: [stable, beta, nightly]
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+          components: rustfmt
+
+      - name: cargo test --all
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all
+
+      - name: cargo test --benches
+        if: matrix.rust == 'nightly'
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --benches
+
+      - name: cargo fmt --check
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  MSRV:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install rust ${{ env.minrust }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.minrust }}
+          profile: minimal
+          override: true
+
+      - name: cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
