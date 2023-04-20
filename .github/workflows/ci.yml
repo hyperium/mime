@@ -15,46 +15,27 @@ jobs:
         rust: [stable, beta, nightly]
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          profile: minimal
-          override: true
           components: rustfmt
 
-      - name: cargo test --all
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all
+      - run: cargo test --all
 
-      - name: cargo test --benches
+      - run: cargo test --benches
         if: matrix.rust == 'nightly'
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --benches
 
-      - name: cargo fmt --check
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: cargo fmt --all --check
 
   MSRV:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install rust ${{ env.minrust }}
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.minrust }}
-          profile: minimal
-          override: true
 
-      - name: cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
+      - run: cargo build
