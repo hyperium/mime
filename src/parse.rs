@@ -1,11 +1,11 @@
+use super::{Indexed, Mime, MimeIter, ParamSource, Source, CHARSET, UTF_8};
+use crate::IndexedCollection;
 #[allow(unused, deprecated)]
 use std::ascii::AsciiExt;
 use std::error::Error;
 use std::fmt;
 use std::iter::Enumerate;
 use std::str::Bytes;
-
-use super::{Indexed, Mime, MimeIter, ParamSource, Source, CHARSET, UTF_8};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -164,7 +164,7 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
     let src = match params {
         ParamSource::Utf8(_) => s.to_ascii_lowercase(),
         ParamSource::Custom(semicolon, ref indices) => {
-            lower_ascii_with_params(s, semicolon, indices)
+            lower_ascii_with_params(s, semicolon, indices.0.as_slice())
         }
         ParamSource::None => {
             // Chop off the empty list
@@ -292,10 +292,13 @@ fn params_from_str(
                 let i = i + 2;
                 let charset = Indexed(i, "charset".len() + i);
                 let utf8 = Indexed(charset.1 + 1, charset.1 + "utf-8".len() + 1);
-                params = ParamSource::Custom(semicolon, vec![(charset, utf8), (name, value)]);
+                params = ParamSource::Custom(
+                    semicolon,
+                    IndexedCollection(vec![(charset, utf8), (name, value)]),
+                );
             }
             ParamSource::Custom(_, ref mut vec) => {
-                vec.push((name, value));
+                vec.0.push((name, value));
             }
             ParamSource::None => {
                 if semicolon + 2 == name.0 && CHARSET == &s[name.0..name.1] {
@@ -304,7 +307,7 @@ fn params_from_str(
                         continue 'params;
                     }
                 }
-                params = ParamSource::Custom(semicolon, vec![(name, value)]);
+                params = ParamSource::Custom(semicolon, IndexedCollection(vec![(name, value)]));
             }
         }
     }

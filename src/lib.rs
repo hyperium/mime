@@ -38,7 +38,7 @@ use std::str::FromStr;
 mod parse;
 
 /// A parsed mime or media type.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Mime {
     source: Source,
     slash: usize,
@@ -99,7 +99,7 @@ impl Error for FromStrError {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 enum Source {
     Atom(u8, &'static str),
     Dynamic(String),
@@ -114,14 +114,17 @@ impl Source {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 enum ParamSource {
     Utf8(usize),
-    Custom(usize, Vec<(Indexed, Indexed)>),
+    Custom(usize, IndexedCollection),
     None,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, PartialEq, Eq)]
+struct IndexedCollection(Vec<(Indexed, Indexed)>);
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct Indexed(usize, usize);
 
 impl Mime {
@@ -210,7 +213,7 @@ impl Mime {
             ParamSource::Utf8(_) => ParamsInner::Utf8,
             ParamSource::Custom(_, ref params) => ParamsInner::Custom {
                 source: &self.source,
-                params: params.iter(),
+                params: params.0.iter(),
             },
             ParamSource::None => ParamsInner::None,
         };
@@ -243,6 +246,7 @@ impl Mime {
         }
     }
 
+    #[allow(dead_code)]
     fn atom(&self) -> u8 {
         match self.source {
             Source::Atom(a, _) => a,
@@ -372,23 +376,6 @@ fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
         }
     }
 }
-
-impl PartialEq for Mime {
-    #[inline]
-    fn eq(&self, other: &Mime) -> bool {
-        match (self.atom(), other.atom()) {
-            // TODO:
-            // This could optimize for when there are no customs parameters.
-            // Any parsed mime has already been lowercased, so if there aren't
-            // any parameters that are case sensistive, this can skip the
-            // eq_ascii, and just use a memcmp instead.
-            (0, _) | (_, 0) => mime_eq_str(self, other.source.as_ref()),
-            (a, b) => a == b,
-        }
-    }
-}
-
-impl Eq for Mime {}
 
 impl PartialOrd for Mime {
     fn partial_cmp(&self, other: &Mime) -> Option<Ordering> {
