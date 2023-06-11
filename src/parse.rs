@@ -5,17 +5,16 @@ use std::fmt;
 use std::iter::Enumerate;
 use std::str::Bytes;
 
-use super::{Mime, MimeIter, Source, ParamSource, Indexed, CHARSET, UTF_8};
+use crate::IndexedCollection;
+
+use super::{Indexed, Mime, MimeIter, ParamSource, Source, CHARSET, UTF_8};
 
 #[derive(Debug)]
 pub enum ParseError {
     MissingSlash,
     MissingEqual,
     MissingQuote,
-    InvalidToken {
-        pos: usize,
-        byte: u8,
-    },
+    InvalidToken { pos: usize, byte: u8 },
 }
 
 impl ParseError {
@@ -52,10 +51,7 @@ impl Error for ParseError {
 impl<'a> MimeIter<'a> {
     /// A new iterator over mimes or media types
     pub fn new(s: &'a str) -> Self {
-        Self {
-            pos: 0,
-            source: s,
-        }
+        Self { pos: 0, source: s }
     }
 }
 
@@ -67,11 +63,11 @@ impl<'a> Iterator for MimeIter<'a> {
         let len = self.source.bytes().len();
 
         if start >= len {
-            return None
+            return None;
         }
 
         // Try parsing the whole remaining slice, until the end
-        match parse(&self.source[start ..len]) {
+        match parse(&self.source[start..len]) {
             Ok(value) => {
                 self.pos = len;
                 Some(Ok(value))
@@ -80,9 +76,9 @@ impl<'a> Iterator for MimeIter<'a> {
                 // The first token is immediately found to be wrong by `parse`. Skip it
                 if pos == 0 {
                     self.pos += 1;
-                    return self.next()
+                    return self.next();
                 }
-                let slice = &self.source[start .. start + pos];
+                let slice = &self.source[start..start + pos];
                 // Try parsing the longest slice (until the first invalid token)
                 return match parse(slice) {
                     Ok(mime) => {
@@ -99,7 +95,7 @@ impl<'a> Iterator for MimeIter<'a> {
                             None
                         }
                     }
-                }
+                };
             }
             // Do not process any other error condition: the slice is malformed and
             // no character is found to be invalid: a character is missing
@@ -124,14 +120,15 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
                 slash = i;
                 start = i + 1;
                 break;
-            },
+            }
             None => return Err(ParseError::MissingSlash), // EOF and no toplevel is no Mime
-            Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                pos: pos,
-                byte: byte,
-            })
+            Some((pos, byte)) => {
+                return Err(ParseError::InvalidToken {
+                    pos: pos,
+                    byte: byte,
+                })
+            }
         };
-
     }
 
     // sublevel
@@ -140,11 +137,11 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
         match iter.next() {
             Some((i, b'+')) if i > start => {
                 plus = Some(i);
-            },
+            }
             Some((i, b';')) if i > start => {
                 start = i;
                 break;
-            },
+            }
             Some((_, c)) if is_token(c) => (),
             None => {
                 return Ok(Mime {
@@ -153,11 +150,13 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
                     plus: plus,
                     params: ParamSource::None,
                 });
-            },
-            Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                pos: pos,
-                byte: byte,
-            })
+            }
+            Some((pos, byte)) => {
+                return Err(ParseError::InvalidToken {
+                    pos: pos,
+                    byte: byte,
+                })
+            }
         };
     }
 
@@ -165,8 +164,10 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
     let params = params_from_str(s, &mut iter, start)?;
 
     let src = match params {
-        ParamSource::Utf8(_)  => s.to_ascii_lowercase(),
-        ParamSource::Custom(semicolon, ref indices) => lower_ascii_with_params(s, semicolon, indices),
+        ParamSource::Utf8(_) => s.to_ascii_lowercase(),
+        ParamSource::Custom(semicolon, ref indices) => {
+            lower_ascii_with_params(s, semicolon, indices.0.as_slice())
+        }
         ParamSource::None => {
             // Chop off the empty list
             s[..start].to_ascii_lowercase()
@@ -181,8 +182,11 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
     })
 }
 
-
-fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Result<ParamSource, ParseError> {
+fn params_from_str(
+    s: &str,
+    iter: &mut Enumerate<Bytes>,
+    mut start: usize,
+) -> Result<ParamSource, ParseError> {
     let semicolon = start;
     start += 1;
     let mut params = ParamSource::None;
@@ -194,18 +198,20 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 Some((i, b' ')) if i == start => {
                     start = i + 1;
                     continue 'params;
-                },
+                }
                 Some((_, c)) if is_token(c) => (),
                 Some((i, b'=')) if i > start => {
                     name = Indexed(start, i);
                     start = i + 1;
                     break 'name;
-                },
+                }
                 None => return Err(ParseError::MissingEqual),
-                Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                    pos: pos,
-                    byte: byte,
-                }),
+                Some((pos, byte)) => {
+                    return Err(ParseError::InvalidToken {
+                        pos: pos,
+                        byte: byte,
+                    })
+                }
             }
         }
 
@@ -219,20 +225,22 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                     Some((i, b'"')) if i > start => {
                         value = Indexed(start, i);
                         break 'value;
-                    },
+                    }
                     Some((_, c)) if is_restricted_quoted_char(c) => (),
                     None => return Err(ParseError::MissingQuote),
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
-                        byte: byte,
-                    }),
+                    Some((pos, byte)) => {
+                        return Err(ParseError::InvalidToken {
+                            pos: pos,
+                            byte: byte,
+                        })
+                    }
                 }
             } else {
                 match iter.next() {
                     Some((i, b'"')) if i == start => {
                         is_quoted = true;
                         start = i + 1;
-                    },
+                    }
                     Some((_, c)) if is_token(c) => (),
                     Some((i, b';')) if i > start => {
                         value = Indexed(start, i);
@@ -243,12 +251,14 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                         value = Indexed(start, s.len());
                         start = s.len();
                         break 'value;
-                    },
+                    }
 
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
-                        byte: byte,
-                    }),
+                    Some((pos, byte)) => {
+                        return Err(ParseError::InvalidToken {
+                            pos: pos,
+                            byte: byte,
+                        })
+                    }
                 }
             }
         }
@@ -260,19 +270,21 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                         // next param
                         start = i + 1;
                         break 'ws;
-                    },
+                    }
                     Some((_, b' ')) => {
                         // skip whitespace
-                    },
+                    }
                     None => {
                         // eof
                         start = s.len();
                         break 'ws;
-                    },
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
-                        byte: byte,
-                    }),
+                    }
+                    Some((pos, byte)) => {
+                        return Err(ParseError::InvalidToken {
+                            pos: pos,
+                            byte: byte,
+                        })
+                    }
                 }
             }
         }
@@ -282,14 +294,14 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                 let i = i + 2;
                 let charset = Indexed(i, "charset".len() + i);
                 let utf8 = Indexed(charset.1 + 1, charset.1 + "utf-8".len() + 1);
-                params = ParamSource::Custom(semicolon, vec![
-                    (charset, utf8),
-                    (name, value),
-                ]);
-            },
+                params = ParamSource::Custom(
+                    semicolon,
+                    IndexedCollection(vec![(charset, utf8), (name, value)]),
+                );
+            }
             ParamSource::Custom(_, ref mut vec) => {
-                vec.push((name, value));
-            },
+                vec.0.push((name, value));
+            }
             ParamSource::None => {
                 if semicolon + 2 == name.0 && CHARSET == &s[name.0..name.1] {
                     if UTF_8 == &s[value.0..value.1] {
@@ -297,8 +309,8 @@ fn params_from_str(s: &str, iter: &mut Enumerate<Bytes>, mut start: usize) -> Re
                         continue 'params;
                     }
                 }
-                params = ParamSource::Custom(semicolon, vec![(name, value)]);
-            },
+                params = ParamSource::Custom(semicolon, IndexedCollection(vec![(name, value)]));
+            }
         }
     }
     Ok(params)
@@ -365,22 +377,14 @@ macro_rules! byte_map {
 }
 
 static TOKEN_MAP: [bool; 256] = byte_map![
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 fn is_token(c: u8) -> bool {
@@ -397,52 +401,74 @@ fn test_lookup_tables() {
     for (i, &valid) in TOKEN_MAP.iter().enumerate() {
         let i = i as u8;
         let should = match i {
-            b'a'...b'z' |
-            b'A'...b'Z' |
-            b'0'...b'9' |
-            b'!' |
-            b'#' |
-            b'$' |
-            b'%' |
-            b'&' |
-            b'\'' |
-            b'*' |
-            b'+' |
-            b'-' |
-            b'.' |
-            b'^' |
-            b'_' |
-            b'`' |
-            b'|' |
-            b'~' => true,
-            _ => false
+            b'a'...b'z'
+            | b'A'...b'Z'
+            | b'0'...b'9'
+            | b'!'
+            | b'#'
+            | b'$'
+            | b'%'
+            | b'&'
+            | b'\''
+            | b'*'
+            | b'+'
+            | b'-'
+            | b'.'
+            | b'^'
+            | b'_'
+            | b'`'
+            | b'|'
+            | b'~' => true,
+            _ => false,
         };
-        assert_eq!(valid, should, "{:?} ({}) should be {}", i as char, i, should);
+        assert_eq!(
+            valid, should,
+            "{:?} ({}) should be {}",
+            i as char, i, should
+        );
     }
 }
 
 #[test]
 fn test_parse_iterator() {
     let mut iter = MimeIter::new("application/json, application/json");
-    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
-    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(
+        iter.next().unwrap().unwrap(),
+        parse("application/json").unwrap()
+    );
+    assert_eq!(
+        iter.next().unwrap().unwrap(),
+        parse("application/json").unwrap()
+    );
     assert_eq!(iter.next(), None);
 
     let mut iter = MimeIter::new("application/json");
-    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(
+        iter.next().unwrap().unwrap(),
+        parse("application/json").unwrap()
+    );
     assert_eq!(iter.next(), None);
 
     let mut iter = MimeIter::new("application/json;  ");
-    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(
+        iter.next().unwrap().unwrap(),
+        parse("application/json").unwrap()
+    );
     assert_eq!(iter.next(), None);
 }
 
 #[test]
 fn test_parse_iterator_invalid() {
     let mut iter = MimeIter::new("application/json, invalid, application/json");
-    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(
+        iter.next().unwrap().unwrap(),
+        parse("application/json").unwrap()
+    );
     assert_eq!(iter.next().unwrap().unwrap_err(), "invalid");
-    assert_eq!(iter.next().unwrap().unwrap(), parse("application/json").unwrap());
+    assert_eq!(
+        iter.next().unwrap().unwrap(),
+        parse("application/json").unwrap()
+    );
     assert_eq!(iter.next(), None);
 }
 
