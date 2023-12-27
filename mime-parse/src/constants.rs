@@ -310,6 +310,9 @@ impl Atoms {
                             if sub == JSON {
                                 return Atoms::APPLICATION_JSON;
                             }
+                            if sub == WASM {
+                                return Atoms::APPLICATION_WASM;
+                            }
                         },
                         7 => {
                             if sub == MSGPACK {
@@ -406,6 +409,7 @@ names! {
     MSGPACK, "msgpack";
     OCTET_STREAM, "octet-stream";
     PDF, "pdf";
+    WASM, "wasm";
 
     // common font/*
     WOFF, "woff";
@@ -466,6 +470,7 @@ mimes! {
     APPLICATION_MSGPACK, "application/msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
     APPLICATION_DNS, "application/dns-message", 11;
+    APPLICATION_WASM, "application/wasm", 11;
 
     // media-ranges
     //@ MediaRange:
@@ -475,4 +480,3 @@ mimes! {
     VIDEO_STAR, "video/*", 5;
     AUDIO_STAR, "audio/*", 5;
 }
-
