@@ -240,13 +240,15 @@ impl Atoms {
                             if sub == WOFF {
                                 return Atoms::FONT_WOFF;
                             }
-                            if sub == COLLECTION {
-                                return Atoms::FONT_COLLECTION;
-                            }
                         }
                         5 => {
                             if sub == WOFF2 {
                                 return Atoms::FONT_WOFF2;
+                            }
+                        }
+                        10 => {
+                            if sub == COLLECTION {
+                                return Atoms::FONT_COLLECTION;
                             }
                         }
                         _ => (),
