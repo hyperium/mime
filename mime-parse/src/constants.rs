@@ -323,10 +323,16 @@ impl Atoms {
                             if sub == PDF {
                                 return Atoms::APPLICATION_PDF;
                             }
+                            if sub == ZIP {
+                                return Atoms::APPLICATION_ZIP;
+                            }
                         }
                         4 => {
                             if sub == JSON {
                                 return Atoms::APPLICATION_JSON;
+                            }
+                            if sub == GZIP {
+                                return Atoms::APPLICATION_GZIP;
                             }
                         },
                         7 => {
@@ -424,6 +430,8 @@ names! {
     MSGPACK, "msgpack";
     OCTET_STREAM, "octet-stream";
     PDF, "pdf";
+    ZIP, "zip";
+    GZIP, "gzip";
 
     // common font/*
     WOFF, "woff";
@@ -484,6 +492,8 @@ mimes! {
     APPLICATION_MSGPACK, "application/msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
     APPLICATION_DNS, "application/dns-message", 11;
+    APPLICATION_ZIP, "application/zip", 11;
+    APPLICATION_GZIP, "application/gzip", 11;
 
     AUDIO_BASIC, "audio/basic", 5;
     AUDIO_MPEG, "audio/mpeg", 5;
