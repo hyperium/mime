@@ -1,4 +1,5 @@
 use super::{InternParams, Mime, ParamSource, Source};
+use crate::constants::names::RAR;
 
 macro_rules! mimes {
     ($($id:ident, $($piece:expr),+;)+) => (
@@ -59,7 +60,6 @@ macro_rules! mime_constant {
         };
     )
 }
-
 
 #[cfg(test)]
 macro_rules! mime_constant_test {
@@ -135,12 +135,8 @@ impl Atoms {
         );
 
         match params {
-            InternParams::Utf8(semicolon) => {
-                Atoms::intern_charset_utf8(s, slash, semicolon)
-            },
-            InternParams::None => {
-                Atoms::intern_no_params(s, slash)
-            },
+            InternParams::Utf8(semicolon) => Atoms::intern_charset_utf8(s, slash, semicolon),
+            InternParams::None => Atoms::intern_no_params(s, slash),
         }
     }
 
@@ -168,49 +164,7 @@ impl Atoms {
         }
         if top == APPLICATION {
             if sub == JAVASCRIPT {
-                return Atoms::APPLICATION_JAVASCRIPT;
-            }
-            if sub == RAR {
-                return Atoms::APPLICATION_RAR;
-            }
-            if sub == VND_MS_FONTOBJECT {
-                return Atoms::APPLICATION_VND_MS_FONTOBJECT;
-            }
-            if sub == POSTSCRIPT {
-                return Atoms::APPLICATION_POSTSCRIPT;
-            }
-        }
-        if top == AUDIO {
-            if sub == AIFF {
-                return Atoms::AUDIO_AIFF;
-            }
-            if sub == MIDI {
-                return Atoms::AUDIO_MIDI;
-            }
-            if sub == WAVE {
-                return Atoms::AUDIO_WAVE;
-            }
-        }
-        if top == VIDEO {
-            if sub == AVI {
-                return Atoms::VIDEO_AVI;
-            }
-            if sub == MP4 {
-                return Atoms::VIDEO_MP4;
-            }
-            if sub == WEBM {
-                return Atoms::VIDEO_WEBM;
-            }
-        }
-        if top == FONT {
-            if sub == TTF {
-                return Atoms::FONT_TTF;
-            }
-            if sub == OTF {
-                return Atoms::FONT_OTF;
-            }
-            if sub == COLLECTION {
-                return Atoms::FONT_COLLECTION;
+                return Atoms::APPLICATION_JAVASCRIPT_UTF_8;
             }
         }
 
@@ -241,7 +195,7 @@ impl Atoms {
                             if sub == CSV {
                                 return Atoms::TEXT_CSV;
                             }
-                        },
+                        }
                         4 => {
                             if sub == HTML {
                                 return Atoms::TEXT_HTML;
@@ -264,7 +218,7 @@ impl Atoms {
                             if sub == EVENT_STREAM {
                                 return Atoms::TEXT_EVENT_STREAM;
                             }
-                        },
+                        }
                         20 => {
                             if sub == TAB_SEPARATED_VALUES {
                                 return Atoms::TEXT_TAB_SEPARATED_VALUES;
@@ -281,7 +235,13 @@ impl Atoms {
                             if sub == OTF {
                                 return Atoms::FONT_OTF;
                             }
-                        },
+                            if sub == TTF {
+                                return Atoms::FONT_TTF;
+                            }
+                            if sub == OTF {
+                                return Atoms::FONT_OTF;
+                            }
+                        }
                         4 => {
                             if sub == WOFF {
                                 return Atoms::FONT_WOFF;
@@ -289,16 +249,16 @@ impl Atoms {
                             if sub == COLLECTION {
                                 return Atoms::FONT_COLLECTION;
                             }
-                        },
+                        }
                         5 => {
                             if sub == WOFF2 {
                                 return Atoms::FONT_WOFF2;
                             }
-                        },
+                        }
                         _ => (),
                     }
                 }
-            },
+            }
             5 => {
                 if top == IMAGE {
                     match sub.len() {
@@ -328,14 +288,13 @@ impl Atoms {
                             if sub == AVIF {
                                 return Atoms::IMAGE_AVIF;
                             }
-                        },
+                        }
                         7 => {
                             if sub == SVG {
                                 return Atoms::IMAGE_SVG;
                             }
-                        },
+                        }
                         _ => (),
-
                     }
                 } else if top == VIDEO {
                     match sub.len() {
@@ -343,7 +302,7 @@ impl Atoms {
                             if sub.as_bytes()[0] == b'*' {
                                 return Atoms::VIDEO_STAR;
                             }
-                        },
+                        }
                         3 => {
                             if sub == AVI {
                                 return Atoms::VIDEO_AVI;
@@ -351,7 +310,7 @@ impl Atoms {
                             if sub == MP4 {
                                 return Atoms::VIDEO_MP4;
                             }
-                        },
+                        }
                         4 => {
                             if sub == WEBM {
                                 return Atoms::VIDEO_WEBM;
@@ -365,7 +324,7 @@ impl Atoms {
                             if sub.as_bytes()[0] == b'*' {
                                 return Atoms::AUDIO_STAR;
                             }
-                        },
+                        }
                         3 => {
                             if sub == OGG {
                                 return Atoms::AUDIO_OGG;
@@ -381,22 +340,28 @@ impl Atoms {
                             }
                         }
                         4 => {
+                            if sub == AIFF {
+                                return Atoms::AUDIO_AIFF;
+                            }
+                            if sub == MIDI {
+                                return Atoms::AUDIO_MIDI;
+                            }
                             if sub == MPEG {
                                 return Atoms::AUDIO_MPEG;
                             }
                             if sub == WAVE {
                                 return Atoms::AUDIO_WAVE;
                             }
-                        },
+                        }
                         5 => {
                             if sub == BASIC {
                                 return Atoms::AUDIO_BASIC;
                             }
-                        },
+                        }
                         _ => (),
                     }
                 }
-            },
+            }
             11 => {
                 if top == APPLICATION {
                     match sub.len() {
@@ -410,6 +375,9 @@ impl Atoms {
                             if sub == RAR {
                                 return Atoms::APPLICATION_RAR;
                             }
+                            if sub == RAR {
+                                return Atoms::APPLICATION_RAR;
+                            }
                         }
                         4 => {
                             if sub == JSON {
@@ -418,17 +386,20 @@ impl Atoms {
                             if sub == GZIP {
                                 return Atoms::APPLICATION_GZIP;
                             }
-                        },
+                        }
                         7 => {
                             if sub == MSGPACK {
                                 return Atoms::APPLICATION_MSGPACK;
                             }
-                        },
+                        }
                         10 => {
                             if sub == JAVASCRIPT {
                                 return Atoms::APPLICATION_JAVASCRIPT;
                             }
-                        },
+                            if sub == POSTSCRIPT {
+                                return Atoms::APPLICATION_POSTSCRIPT;
+                            }
+                        }
                         11 => {
                             if sub == "dns-message" {
                                 return Atoms::APPLICATION_DNS;
@@ -436,7 +407,7 @@ impl Atoms {
                             if sub == VND_MS_FONTOBJECT {
                                 return Atoms::APPLICATION_VND_MS_FONTOBJECT;
                             }
-                        },
+                        }
                         12 => {
                             if sub == OCTET_STREAM {
                                 return Atoms::APPLICATION_OCTET_STREAM;

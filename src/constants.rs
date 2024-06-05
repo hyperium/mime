@@ -1,4 +1,3 @@
-
 macro_rules! mimes {
     ($(@ $kind:ident: $($id:ident, $src:expr;)+)+) => (
         pub(super) mod mimes {
@@ -31,35 +30,35 @@ macro_rules! mimes {
 }
 
 macro_rules! mime_constant {
-    ($kind:ident, $id:ident, $src:expr) => (
+    ($kind:ident, $id:ident, $src:expr) => {
         mime_constant! {
             @DOC concat!("A `", stringify!($kind), "` representing `\"", $src, "\"`."),
             $kind,
             $id,
             $src
         }
-    );
-    (@DOC $doc:expr, $kind:ident, $id:ident, $src:expr) => (
+    };
+    (@DOC $doc:expr, $kind:ident, $id:ident, $src:expr) => {
         #[doc = $doc]
         pub const $id: $kind = $kind {
             mime: mime_parse::constants::$id,
         };
-    )
+    };
 }
 
 #[cfg(test)]
 macro_rules! mime_constant_test {
-    ($id:ident, $src:expr) => ({
+    ($id:ident, $src:expr) => {{
         let __mime = $id;
 
         // prevent ranges from being MediaTypes
         __mime.test_assert_asterisks();
-    })
+    }};
 }
 
 #[cfg(test)]
 macro_rules! mime_constant_proc_macro_test {
-    (@MediaType, $id:ident, $src:expr) => (
+    (@MediaType, $id:ident, $src:expr) => {
         // Test proc macro matches constants
         #[cfg(feature = "macro")]
         {
@@ -71,8 +70,8 @@ macro_rules! mime_constant_proc_macro_test {
             assert_ne!(macroed.mime.private_atom(), 0);
             assert_eq!(constant.mime.private_atom(), macroed.mime.private_atom());
         }
-    );
-    (@MediaRange, $id:ident, $src:expr) => ();
+    };
+    (@MediaRange, $id:ident, $src:expr) => {};
 }
 
 mimes! {
