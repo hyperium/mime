@@ -102,6 +102,9 @@ mimes! {
 
     FONT_WOFF, "font/woff";
     FONT_WOFF2, "font/woff2";
+    FONT_TTF, "font/ttf";
+    FONT_OTF, "font/otf";
+    FONT_COLLECTION, "font/collection";
 
     APPLICATION_JSON, "application/json";
     APPLICATION_JAVASCRIPT, "application/javascript";
@@ -113,11 +116,21 @@ mimes! {
     APPLICATION_DNS, "application/dns-message";
     APPLICATION_ZIP, "application/zip";
     APPLICATION_GZIP, "application/gzip";
+    APPLICATION_RAR, "application/rar";
+    APPLICATION_VND_MS_FONTOBJECT, "application/vnd.ms-fontobject";
+    APPLICATION_POSTSCRIPT, "application/postscript";
 
     AUDIO_BASIC, "audio/basic";
     AUDIO_MPEG, "audio/mpeg";
     AUDIO_MP4, "audio/mp4";
     AUDIO_OGG, "audio/ogg";
+    AUDIO_AIFF, "audio/aiff";
+    AUDIO_MIDI, "audio/midi";
+    AUDIO_WAVE, "audio/wave";
+
+    VIDEO_AVI, "video/avi";
+    VIDEO_MP4, "video/mp4";
+    VIDEO_WEBM, "video/webm";
 
     // media-ranges
     @ MediaRange:

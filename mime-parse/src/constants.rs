@@ -168,7 +168,49 @@ impl Atoms {
         }
         if top == APPLICATION {
             if sub == JAVASCRIPT {
-                return Atoms::APPLICATION_JAVASCRIPT_UTF_8;
+                return Atoms::APPLICATION_JAVASCRIPT;
+            }
+            if sub == RAR {
+                return Atoms::APPLICATION_RAR;
+            }
+            if sub == VND_MS_FONTOBJECT {
+                return Atoms::APPLICATION_VND_MS_FONTOBJECT;
+            }
+            if sub == POSTSCRIPT {
+                return Atoms::APPLICATION_POSTSCRIPT;
+            }
+        }
+        if top == AUDIO {
+            if sub == AIFF {
+                return Atoms::AUDIO_AIFF;
+            }
+            if sub == MIDI {
+                return Atoms::AUDIO_MIDI;
+            }
+            if sub == WAVE {
+                return Atoms::AUDIO_WAVE;
+            }
+        }
+        if top == VIDEO {
+            if sub == AVI {
+                return Atoms::VIDEO_AVI;
+            }
+            if sub == MP4 {
+                return Atoms::VIDEO_MP4;
+            }
+            if sub == WEBM {
+                return Atoms::VIDEO_WEBM;
+            }
+        }
+        if top == FONT {
+            if sub == TTF {
+                return Atoms::FONT_TTF;
+            }
+            if sub == OTF {
+                return Atoms::FONT_OTF;
+            }
+            if sub == COLLECTION {
+                return Atoms::FONT_COLLECTION;
             }
         }
 
@@ -232,9 +274,20 @@ impl Atoms {
                     }
                 } else if top == FONT {
                     match sub.len() {
+                        3 => {
+                            if sub == TTF {
+                                return Atoms::FONT_TTF;
+                            }
+                            if sub == OTF {
+                                return Atoms::FONT_OTF;
+                            }
+                        },
                         4 => {
                             if sub == WOFF {
                                 return Atoms::FONT_WOFF;
+                            }
+                            if sub == COLLECTION {
+                                return Atoms::FONT_COLLECTION;
                             }
                         },
                         5 => {
@@ -291,6 +344,19 @@ impl Atoms {
                                 return Atoms::VIDEO_STAR;
                             }
                         },
+                        3 => {
+                            if sub == AVI {
+                                return Atoms::VIDEO_AVI;
+                            }
+                            if sub == MP4 {
+                                return Atoms::VIDEO_MP4;
+                            }
+                        },
+                        4 => {
+                            if sub == WEBM {
+                                return Atoms::VIDEO_WEBM;
+                            }
+                        }
                         _ => (),
                     }
                 } else if top == AUDIO {
@@ -307,10 +373,19 @@ impl Atoms {
                             if sub == MP4 {
                                 return Atoms::AUDIO_MP4;
                             }
+                            if sub == AIFF {
+                                return Atoms::AUDIO_AIFF;
+                            }
+                            if sub == MIDI {
+                                return Atoms::AUDIO_MIDI;
+                            }
                         }
                         4 => {
                             if sub == MPEG {
                                 return Atoms::AUDIO_MPEG;
+                            }
+                            if sub == WAVE {
+                                return Atoms::AUDIO_WAVE;
                             }
                         },
                         5 => {
@@ -331,6 +406,9 @@ impl Atoms {
                             }
                             if sub == ZIP {
                                 return Atoms::APPLICATION_ZIP;
+                            }
+                            if sub == RAR {
+                                return Atoms::APPLICATION_RAR;
                             }
                         }
                         4 => {
@@ -354,6 +432,9 @@ impl Atoms {
                         11 => {
                             if sub == "dns-message" {
                                 return Atoms::APPLICATION_DNS;
+                            }
+                            if sub == VND_MS_FONTOBJECT {
+                                return Atoms::APPLICATION_VND_MS_FONTOBJECT;
                             }
                         },
                         12 => {
@@ -438,10 +519,16 @@ names! {
     PDF, "pdf";
     ZIP, "zip";
     GZIP, "gzip";
+    RAR, "rar";
+    VND_MS_FONTOBJECT, "vnd.ms-fontobject";
+    POSTSCRIPT, "postscript";
 
     // common font/*
     WOFF, "woff";
     WOFF2, "woff2";
+    TTF, "ttf";
+    OTF, "otf";
+    COLLECTION, "collection";
 
     // multipart/*
     FORM_DATA, "form-data";
@@ -460,6 +547,13 @@ names! {
     MPEG, "mpeg";
     MP4, "mp4";
     OGG, "ogg";
+    AIFF, "aiff";
+    MIDI, "midi";
+    WAVE, "wave";
+
+    // video/*
+    AVI, "avi";
+    WEBM, "webm";
 
     // parameters
     CHARSET, "charset";
@@ -493,6 +587,9 @@ mimes! {
 
     FONT_WOFF, "font/woff", 4;
     FONT_WOFF2, "font/woff2", 4;
+    FONT_TTF, "font/ttf", 4;
+    FONT_OTF, "font/otf", 4;
+    FONT_COLLECTION, "font/collection", 4;
 
     APPLICATION_JSON, "application/json", 11;
     APPLICATION_JAVASCRIPT, "application/javascript", 11;
@@ -504,11 +601,21 @@ mimes! {
     APPLICATION_DNS, "application/dns-message", 11;
     APPLICATION_ZIP, "application/zip", 11;
     APPLICATION_GZIP, "application/gzip", 11;
+    APPLICATION_RAR, "application/rar", 11;
+    APPLICATION_VND_MS_FONTOBJECT, "application/vnd.ms-fontobject", 11;
+    APPLICATION_POSTSCRIPT, "application/postscript", 11;
 
     AUDIO_BASIC, "audio/basic", 5;
     AUDIO_MPEG, "audio/mpeg", 5;
     AUDIO_MP4, "audio/mp4", 5;
     AUDIO_OGG, "audio/ogg", 5;
+    AUDIO_AIFF, "audio/aiff", 5;
+    AUDIO_MIDI, "audio/midi", 5;
+    AUDIO_WAVE, "audio/wave", 5;
+
+    VIDEO_AVI, "video/avi", 5;
+    VIDEO_MP4, "video/mp4", 5;
+    VIDEO_WEBM, "video/webm", 5;
 
     // media-ranges
     //@ MediaRange:
