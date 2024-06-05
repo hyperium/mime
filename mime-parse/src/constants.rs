@@ -235,12 +235,6 @@ impl Atoms {
                             if sub == OTF {
                                 return Atoms::FONT_OTF;
                             }
-                            if sub == TTF {
-                                return Atoms::FONT_TTF;
-                            }
-                            if sub == OTF {
-                                return Atoms::FONT_OTF;
-                            }
                         }
                         4 => {
                             if sub == WOFF {
@@ -332,12 +326,6 @@ impl Atoms {
                             if sub == MP4 {
                                 return Atoms::AUDIO_MP4;
                             }
-                            if sub == AIFF {
-                                return Atoms::AUDIO_AIFF;
-                            }
-                            if sub == MIDI {
-                                return Atoms::AUDIO_MIDI;
-                            }
                         }
                         4 => {
                             if sub == AIFF {
@@ -371,9 +359,6 @@ impl Atoms {
                             }
                             if sub == ZIP {
                                 return Atoms::APPLICATION_ZIP;
-                            }
-                            if sub == RAR {
-                                return Atoms::APPLICATION_RAR;
                             }
                             if sub == RAR {
                                 return Atoms::APPLICATION_RAR;
