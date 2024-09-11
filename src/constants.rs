@@ -92,6 +92,7 @@ mimes! {
     TEXT_TAB_SEPARATED_VALUES_UTF_8, "text/tab-separated-values; charset=utf-8";
     TEXT_VCARD, "text/vcard";
 
+    IMAGE_WEBP, "image/webp";
     IMAGE_JPEG, "image/jpeg";
     IMAGE_GIF, "image/gif";
     IMAGE_PNG, "image/png";
