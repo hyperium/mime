@@ -310,6 +310,9 @@ impl Atoms {
                             if sub == JSON {
                                 return Atoms::APPLICATION_JSON;
                             }
+                            if sub == TOML {
+                                return Atoms::APPLICATION_TOML;
+                            }
                         },
                         7 => {
                             if sub == MSGPACK {
@@ -406,6 +409,7 @@ names! {
     MSGPACK, "msgpack";
     OCTET_STREAM, "octet-stream";
     PDF, "pdf";
+    TOML, "toml";
 
     // common font/*
     WOFF, "woff";
@@ -465,6 +469,7 @@ mimes! {
     APPLICATION_OCTET_STREAM, "application/octet-stream", 11;
     APPLICATION_MSGPACK, "application/msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
+    APPLICATION_TOML, "application/toml", 11;
     APPLICATION_DNS, "application/dns-message", 11;
 
     // media-ranges
