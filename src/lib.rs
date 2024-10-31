@@ -8,10 +8,10 @@
 //! The `mime` crate defines two major types for representing MIMEs in HTTP
 //! contexts:
 //!
-//! - A [`MediaType`](MediaType) is a concrete description of some content,
-//!   such as `text/plain`.
-//! - A [`MediaRange`](MediaRange) is a range of types that an agent is willing
-//!   to receive, such as `text/*`.
+//! - A [`MediaType`] is a concrete description of some content, such as
+//!   `text/plain`.
+//! - A [`MediaRange`] is a range of types that an agent is willing to receive,
+//!   such as `text/*`.
 //!
 //! ## Getting a `MediaType`
 //!
@@ -24,8 +24,8 @@
 //! // etc
 //! ```
 //!
-//! A [`MediaType`](MediaType) can also be parsed from a string, such as from
-//! a `Content-Type` HTTP header:
+//! A [`MediaType`] can also be parsed from a string, such as from a
+//! `Content-Type` HTTP header:
 //!
 //! ```
 //! match mime::MediaType::parse("text/plain; charset=utf-8") {
@@ -52,9 +52,9 @@
 //!
 //! ## Using Media Ranges for matching
 //!
-//! [`MediaRange`](MediaRange)s are often used by agents to declare a "range"
-//! of media types that they can understand. A common place to find these is
-//! `Accept` HTTP header, perhaps like this:
+//! [`MediaRange`]s are often used by agents to declare a "range" of media
+//! types that they can understand. A common place to find these is `Accept`
+//! HTTP header, perhaps like this:
 //!
 //! ```http
 //! GET /index.html HTTP/1.1
