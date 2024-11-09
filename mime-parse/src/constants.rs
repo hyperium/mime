@@ -309,6 +309,8 @@ impl Atoms {
                         4 => {
                             if sub == JSON {
                                 return Atoms::APPLICATION_JSON;
+                            } else if sub == CBOR {
+                                return Atoms::APPLICATION_CBOR;
                             }
                         },
                         7 => {
@@ -401,6 +403,7 @@ names! {
     TAB_SEPARATED_VALUES, "tab-separated-values";
 
     // common application/*
+    CBOR, "cbor";
     JSON, "json";
     WWW_FORM_URLENCODED, "x-www-form-urlencoded";
     MSGPACK, "msgpack";
@@ -458,6 +461,7 @@ mimes! {
     FONT_WOFF, "font/woff", 4;
     FONT_WOFF2, "font/woff2", 4;
 
+    APPLICATION_CBOR, "application/cbor", 11;
     APPLICATION_JSON, "application/json", 11;
     APPLICATION_JAVASCRIPT, "application/javascript", 11;
     APPLICATION_JAVASCRIPT_UTF_8, "application/javascript; charset=utf-8", 11, None, 22;
