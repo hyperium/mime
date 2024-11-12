@@ -1,5 +1,4 @@
 [package]
-
 name = "mime-parse"
 version = "0.0.0"
 description = "mime parsing internals"

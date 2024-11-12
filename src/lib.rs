@@ -53,7 +53,7 @@
 //! ## Using Media Ranges for matching
 //!
 //! [`MediaRange`]s are often used by agents to declare a "range" of media
-//! types that they can understand. A common place to find these is `Accept`
+//! types that they can understand. A common place to find there is `Accept`
 //! HTTP header, perhaps like this:
 //!
 //! ```http
@@ -106,12 +106,12 @@ use proc_macro_hack::proc_macro_hack;
 #[proc_macro_hack]
 pub use mime_macro::media_type;
 
-pub use mime_parse::constants::names::*;
 pub use self::constants::mimes::*;
 pub use self::error::InvalidMime;
 pub use self::range::MediaRange;
 pub use self::type_::MediaType;
 pub use self::value::{Value, UTF_8};
+pub use mime_parse::constants::names::*;
 
 mod cmp;
 mod constants;
@@ -123,7 +123,6 @@ mod range;
 mod serde;
 mod type_;
 mod value;
-
 
 fn _assert_traits() {
     fn assert_send_sync<T: Send + Sync>() {}

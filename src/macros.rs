@@ -52,12 +52,8 @@ impl MediaType {
     /// ```
     #[doc(hidden)]
     #[cfg(feature = "macro")]
-    pub const unsafe fn private_from_proc_macro(
-        mime: crate::private::Mime,
-    ) -> Self {
-        MediaType {
-            mime,
-        }
+    pub const unsafe fn private_from_proc_macro(mime: crate::private::Mime) -> Self {
+        MediaType { mime }
     }
 }
 
@@ -127,4 +123,3 @@ mod tests {
         assert_eq!(mt.to_string(), "multipart/form-data; boundary=AbCd");
     }
 }
-

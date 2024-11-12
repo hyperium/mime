@@ -9,8 +9,7 @@ pub struct InvalidMime {
     pub(crate) inner: ParseError,
 }
 
-impl Error for InvalidMime {
-}
+impl Error for InvalidMime {}
 
 impl fmt::Display for InvalidMime {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

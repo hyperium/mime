@@ -1,5 +1,4 @@
 [package]
-
 name = "mime-macro"
 version = "0.0.0"
 description = "mime procedural macros"
@@ -14,7 +13,7 @@ proc-macro = true
 
 [dependencies]
 mime-parse = { path = "../mime-parse" }
-proc-macro2 = "0.4"
+proc-macro2 = "1.0"
 proc-macro-hack = "0.5"
-quote = "0.6"
-syn = "0.15"
+quote = "1.0"
+syn = "2.0"

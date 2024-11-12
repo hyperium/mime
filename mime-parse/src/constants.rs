@@ -60,7 +60,6 @@ macro_rules! mime_constant {
     )
 }
 
-
 #[cfg(test)]
 macro_rules! mime_constant_test {
     ($id:ident, $src:expr, $slash:expr) => (
@@ -135,12 +134,8 @@ impl Atoms {
         );
 
         match params {
-            InternParams::Utf8(semicolon) => {
-                Atoms::intern_charset_utf8(s, slash, semicolon)
-            },
-            InternParams::None => {
-                Atoms::intern_no_params(s, slash)
-            },
+            InternParams::Utf8(semicolon) => Atoms::intern_charset_utf8(s, slash, semicolon),
+            InternParams::None => Atoms::intern_no_params(s, slash),
         }
     }
 
@@ -199,7 +194,7 @@ impl Atoms {
                             if sub == CSV {
                                 return Atoms::TEXT_CSV;
                             }
-                        },
+                        }
                         4 => {
                             if sub == HTML {
                                 return Atoms::TEXT_HTML;
@@ -222,7 +217,7 @@ impl Atoms {
                             if sub == EVENT_STREAM {
                                 return Atoms::TEXT_EVENT_STREAM;
                             }
-                        },
+                        }
                         20 => {
                             if sub == TAB_SEPARATED_VALUES {
                                 return Atoms::TEXT_TAB_SEPARATED_VALUES;
@@ -236,16 +231,16 @@ impl Atoms {
                             if sub == WOFF {
                                 return Atoms::FONT_WOFF;
                             }
-                        },
+                        }
                         5 => {
                             if sub == WOFF2 {
                                 return Atoms::FONT_WOFF2;
                             }
-                        },
+                        }
                         _ => (),
                     }
                 }
-            },
+            }
             5 => {
                 if top == IMAGE {
                     match sub.len() {
@@ -269,14 +264,13 @@ impl Atoms {
                             if sub == JPEG {
                                 return Atoms::IMAGE_JPEG;
                             }
-                        },
+                        }
                         7 => {
                             if sub == SVG {
                                 return Atoms::IMAGE_SVG;
                             }
-                        },
+                        }
                         _ => (),
-
                     }
                 } else if top == VIDEO {
                     match sub.len() {
@@ -284,7 +278,7 @@ impl Atoms {
                             if sub.as_bytes()[0] == b'*' {
                                 return Atoms::VIDEO_STAR;
                             }
-                        },
+                        }
                         _ => (),
                     }
                 } else if top == AUDIO {
@@ -293,11 +287,11 @@ impl Atoms {
                             if sub.as_bytes()[0] == b'*' {
                                 return Atoms::AUDIO_STAR;
                             }
-                        },
+                        }
                         _ => (),
                     }
                 }
-            },
+            }
             11 => {
                 if top == APPLICATION {
                     match sub.len() {
@@ -310,22 +304,22 @@ impl Atoms {
                             if sub == JSON {
                                 return Atoms::APPLICATION_JSON;
                             }
-                        },
+                        }
                         7 => {
                             if sub == MSGPACK {
                                 return Atoms::APPLICATION_MSGPACK;
                             }
-                        },
+                        }
                         10 => {
                             if sub == JAVASCRIPT {
                                 return Atoms::APPLICATION_JAVASCRIPT;
                             }
-                        },
+                        }
                         11 => {
                             if sub == "dns-message" {
                                 return Atoms::APPLICATION_DNS;
                             }
-                        },
+                        }
                         12 => {
                             if sub == OCTET_STREAM {
                                 return Atoms::APPLICATION_OCTET_STREAM;
@@ -475,4 +469,3 @@ mimes! {
     VIDEO_STAR, "video/*", 5;
     AUDIO_STAR, "audio/*", 5;
 }
-

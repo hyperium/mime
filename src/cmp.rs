@@ -4,9 +4,7 @@ pub(crate) fn str_eq(mime: &Mime, s: &str) -> bool {
     if mime.has_params() {
         Parser::can_range()
             .parse(s)
-            .map(|other_mime| {
-                mime_eq(mime, &other_mime)
-            })
+            .map(|other_mime| mime_eq(mime, &other_mime))
             .unwrap_or(false)
     } else {
         mime.as_ref().eq_ignore_ascii_case(s)
@@ -17,12 +15,9 @@ pub(crate) fn mime_eq(a: &Mime, b: &Mime) -> bool {
     match (a.private_atom(), b.private_atom()) {
         // If either atom is 0, it is "dynamic" and needs to be compared
         // slowly...
-        (0, _) | (_, 0) => {
-            essence_eq(a, b) && params_eq(a, b)
-        },
+        (0, _) | (_, 0) => essence_eq(a, b) && params_eq(a, b),
         (aa, ba) => aa == ba,
     }
-
 }
 
 fn essence_eq(a: &Mime, b: &Mime) -> bool {

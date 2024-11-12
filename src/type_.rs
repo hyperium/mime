@@ -137,10 +137,9 @@ impl MediaType {
     /// let mime = "multipart/form-data; boundary=ABCDEFG".parse::<mime::MediaType>().unwrap();
     /// assert_eq!(mime.param(mime::BOUNDARY).unwrap(), "ABCDEFG");
     /// ```
-    pub fn param<'a>(&'a self, attr: &str) -> Option<Value<'a>> {
+    pub fn param(&self, attr: &str) -> Option<Value> {
         crate::value::param(&self.mime, attr)
     }
-
 
     /// Returns an iterator over the parameters.
     ///
@@ -207,7 +206,11 @@ impl MediaType {
 
     #[cfg(test)]
     pub(super) fn test_assert_asterisks(&self) {
-        assert!(!self.as_ref().contains('*'), "{:?} contains an asterisk", self);
+        assert!(
+            !self.as_ref().contains('*'),
+            "{:?} contains an asterisk",
+            self
+        );
     }
 }
 
@@ -225,12 +228,12 @@ impl PartialEq<str> for MediaType {
 
 impl<'a> PartialEq<&'a str> for MediaType {
     #[inline]
-    fn eq(&self, s: & &'a str) -> bool {
+    fn eq(&self, s: &&'a str) -> bool {
         self == *s
     }
 }
 
-impl<'a> PartialEq<MediaType> for &'a str {
+impl PartialEq<MediaType> for &str {
     #[inline]
     fn eq(&self, mt: &MediaType) -> bool {
         mt == self
@@ -279,13 +282,13 @@ mod tests {
     #[test]
     fn test_size_of() {
         assert!(
-            std::mem::size_of::<MediaType>() < 100,
+            size_of::<MediaType>() < 100,
             "just to be warned if the size grows suddenly"
         );
 
         assert_eq!(
-            std::mem::size_of::<MediaType>(),
-            std::mem::size_of::<Option<MediaType>>(),
+            size_of::<MediaType>(),
+            size_of::<Option<MediaType>>(),
             "option size optimization"
         );
     }
@@ -294,7 +297,6 @@ mod tests {
     fn test_type_() {
         assert_eq!(TEXT_PLAIN.type_(), TEXT);
     }
-
 
     #[test]
     fn test_subtype() {
@@ -331,8 +333,14 @@ mod tests {
     fn test_media_type_from_str() {
         assert_eq!(MediaType::parse("text/plain").unwrap(), TEXT_PLAIN);
         assert_eq!(MediaType::parse("TEXT/PLAIN").unwrap(), TEXT_PLAIN);
-        assert_eq!(MediaType::parse("text/plain; charset=utf-8").unwrap(), TEXT_PLAIN_UTF_8);
-        assert_eq!(MediaType::parse("text/plain;charset=\"utf-8\"").unwrap(), TEXT_PLAIN_UTF_8);
+        assert_eq!(
+            MediaType::parse("text/plain; charset=utf-8").unwrap(),
+            TEXT_PLAIN_UTF_8
+        );
+        assert_eq!(
+            MediaType::parse("text/plain;charset=\"utf-8\"").unwrap(),
+            TEXT_PLAIN_UTF_8
+        );
 
         // quotes + semi colon
         MediaType::parse("text/plain;charset=\"utf-8\"; foo=bar").unwrap();
@@ -342,7 +350,6 @@ mod tests {
         assert_eq!(upper, TEXT_PLAIN);
         assert_eq!(upper.type_(), TEXT);
         assert_eq!(upper.subtype(), PLAIN);
-
 
         let extended = MediaType::parse("TEXT/PLAIN; CHARSET=UTF-8; FOO=BAR").unwrap();
         assert_eq!(extended, "text/plain; charset=utf-8; foo=BAR");
@@ -364,10 +371,9 @@ mod tests {
         MediaType::parse("text/plain; charset=\"\r\nutf-8\"").unwrap_err();
     }
 
-
     #[test]
     fn test_from_str_empty_parameter_list() {
-        static CASES: &'static [&'static str] = &[
+        static CASES: &[&str] = &[
             "text/event-stream;",
             "text/event-stream; ",
             "text/event-stream;       ",
@@ -384,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_parse_too_long() {
-        let mut source = vec![b'a'; ::std::u16::MAX as usize];
+        let mut source = vec![b'a'; u16::MAX as usize];
         source[5] = b'/';
 
         let mut s = String::from_utf8(source).unwrap();
@@ -397,7 +403,8 @@ mod tests {
 
     #[test]
     fn test_case_sensitive_values() {
-        let mime = MediaType::parse("multipart/form-data; charset=BASE64; boundary=ABCDEFG").unwrap();
+        let mime =
+            MediaType::parse("multipart/form-data; charset=BASE64; boundary=ABCDEFG").unwrap();
         assert_eq!(mime.param(CHARSET).unwrap(), "bAsE64");
         assert_eq!(mime.param(BOUNDARY).unwrap(), "ABCDEFG");
         assert_eq!(mime.param(BOUNDARY).unwrap().as_str_repr(), "ABCDEFG");
@@ -416,7 +423,6 @@ mod tests {
         assert_eq!(mime.param(CHARSET).unwrap(), "utf-8");
         assert_eq!(mime.param("foo").unwrap(), "bar");
         assert_eq!(mime.param("baz"), None);
-
 
         let mime = MediaType::parse("text/plain;charset=\"utf-8\"").unwrap();
         assert_eq!(mime.param(CHARSET), Some(UTF_8));
@@ -448,13 +454,13 @@ mod tests {
     #[test]
     fn test_has_params() {
         let mime = TEXT_PLAIN;
-        assert_eq!(mime.has_params(), false);
+        assert!(!mime.has_params());
 
         let mime = MediaType::parse("text/plain; charset=utf-8").unwrap();
-        assert_eq!(mime.has_params(), true);
+        assert!(mime.has_params());
 
         let mime = MediaType::parse("text/plain; charset=utf-8; foo=bar").unwrap();
-        assert_eq!(mime.has_params(), true);
+        assert!(mime.has_params());
     }
 
     #[test]
@@ -531,4 +537,3 @@ mod tests {
         assert_ne!(mime1, mime2);
     }
 }
-

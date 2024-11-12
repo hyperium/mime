@@ -6,7 +6,6 @@ extern crate test;
 use mime::MediaType;
 use test::Bencher;
 
-
 #[bench]
 fn text_plain(b: &mut Bencher) {
     let s = "text/plain";

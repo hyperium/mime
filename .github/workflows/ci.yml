@@ -28,9 +28,6 @@ jobs:
         with:
           components: rustfmt,clippy
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: typos-cli,taplo-cli,hawkeye
       - name: Check format
         run: cargo +nightly fmt --all
       - name: Check clippy

@@ -173,7 +173,7 @@ impl MediaRange {
     /// assert_eq!(range.param("charset").unwrap(), "utf-8");
     /// assert_eq!(range.param("boundary"), None);
     /// ```
-    pub fn param<'a>(&'a self, attr: &str) -> Option<Value<'a>> {
+    pub fn param(&self, attr: &str) -> Option<Value> {
         crate::value::param(&self.mime, attr)
     }
 
@@ -235,9 +235,7 @@ impl MediaRange {
 /// ```
 impl From<MediaType> for MediaRange {
     fn from(mt: MediaType) -> MediaRange {
-        MediaRange {
-            mime: mt.mime,
-        }
+        MediaRange { mime: mt.mime }
     }
 }
 
@@ -255,12 +253,12 @@ impl PartialEq<str> for MediaRange {
 
 impl<'a> PartialEq<&'a str> for MediaRange {
     #[inline]
-    fn eq(&self, s: & &'a str) -> bool {
+    fn eq(&self, s: &&'a str) -> bool {
         self == *s
     }
 }
 
-impl<'a> PartialEq<MediaRange> for &'a str {
+impl PartialEq<MediaRange> for &str {
     #[inline]
     fn eq(&self, mr: &MediaRange) -> bool {
         mr == self
@@ -309,14 +307,20 @@ mod tests {
     #[test]
     fn media_range_from_str() {
         // exact types
-        assert_eq!(MediaRange::parse("text/plain").unwrap(), MediaRange::from(TEXT_PLAIN));
+        assert_eq!(
+            MediaRange::parse("text/plain").unwrap(),
+            MediaRange::from(TEXT_PLAIN)
+        );
 
         // stars
         let any = "*/*".parse::<MediaRange>().unwrap();
         assert_eq!(any, "*/*");
         assert_eq!(any, STAR_STAR);
         assert_eq!("image/*".parse::<MediaRange>().unwrap(), "image/*");
-        assert_eq!("text/*; charset=utf-8".parse::<MediaRange>().unwrap(), "text/*; charset=utf-8");
+        assert_eq!(
+            "text/*; charset=utf-8".parse::<MediaRange>().unwrap(),
+            "text/*; charset=utf-8"
+        );
 
         // bad stars
         MediaRange::parse("text/*plain").unwrap_err();
@@ -328,9 +332,15 @@ mod tests {
 
         assert!(TEXT_STAR.matches(&TEXT_PLAIN), "text/* matches text/plain");
         assert!(TEXT_STAR.matches(&TEXT_HTML), "text/* matches text/html");
-        assert!(TEXT_STAR.matches(&TEXT_HTML_UTF_8), "text/* matches text/html; charset=utf-8");
+        assert!(
+            TEXT_STAR.matches(&TEXT_HTML_UTF_8),
+            "text/* matches text/html; charset=utf-8"
+        );
 
-        assert!(!TEXT_STAR.matches(&IMAGE_GIF), "text/* doesn't match image/gif");
+        assert!(
+            !TEXT_STAR.matches(&IMAGE_GIF),
+            "text/* doesn't match image/gif"
+        );
     }
 
     #[test]
@@ -363,4 +373,3 @@ mod tests {
         assert!(!range.matches(&TEXT_HTML));
     }
 }
-

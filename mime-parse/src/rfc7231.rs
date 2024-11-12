@@ -1,17 +1,6 @@
 use crate::{
-    as_u16,
-    constants,
-    Atoms,
-    Byte,
-    InternParams,
-    lower_ascii_with_params,
-    Mime,
-    Parse,
-    Parser,
-    ParseError,
-    ParamSource,
-    range,
-    Source,
+    as_u16, constants, lower_ascii_with_params, range, Atoms, Byte, InternParams, Mime,
+    ParamSource, Parse, ParseError, Parser, Source,
 };
 
 // From [RFC6838](http://tools.ietf.org/html/rfc6838#section-4.2):
@@ -76,12 +65,14 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
                 slash = as_u16(i);
                 start = i + 1;
                 break;
-            },
+            }
             None => return Err(ParseError::MissingSlash), // EOF and no toplevel is no Mime
-            Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                pos: pos,
-                byte: Byte(byte),
-            }),
+            Some((pos, byte)) => {
+                return Err(ParseError::InvalidToken {
+                    pos: pos,
+                    byte: Byte(byte),
+                })
+            }
         };
     }
 
@@ -91,15 +82,15 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
         match iter.next() {
             Some((i, b'+')) if i > start => {
                 plus = Some(as_u16(i));
-            },
+            }
             Some((i, b';')) if i > start => {
                 start = i;
                 break;
-            },
+            }
             Some((i, b' ')) if i > start => {
                 start = i;
                 break;
-            },
+            }
             Some((i, b'*')) if i == start && opts.can_range => {
                 // sublevel star can only be the first character, and the next
                 // must either be the end, or `;`
@@ -107,19 +98,23 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
                     Some((i, b';')) => {
                         start = i;
                         break;
-                    },
-                    None => return Ok(Mime {
-                        source: Atoms::intern(s, slash, InternParams::None),
-                        slash,
-                        plus,
-                        params: ParamSource::None,
-                    }),
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos,
-                        byte: Byte(byte),
-                    }),
+                    }
+                    None => {
+                        return Ok(Mime {
+                            source: Atoms::intern(s, slash, InternParams::None),
+                            slash,
+                            plus,
+                            params: ParamSource::None,
+                        })
+                    }
+                    Some((pos, byte)) => {
+                        return Err(ParseError::InvalidToken {
+                            pos,
+                            byte: Byte(byte),
+                        })
+                    }
                 }
-            },
+            }
 
             Some((_, c)) if is_token(c) => (),
             None => {
@@ -129,11 +124,13 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
                     plus,
                     params: ParamSource::None,
                 });
-            },
-            Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                pos: pos,
-                byte: Byte(byte),
-            })
+            }
+            Some((pos, byte)) => {
+                return Err(ParseError::InvalidToken {
+                    pos: pos,
+                    byte: Byte(byte),
+                })
+            }
         };
     }
 
@@ -150,11 +147,19 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
                 b == b';' || b == b' '
             });
             Atoms::intern(&s[..start], slash, InternParams::None)
-        },
-        ParamSource::Utf8(params_start) => Atoms::intern(s, slash, InternParams::Utf8(params_start as usize)),
-        ParamSource::One(params_start, a) => Source::Dynamic(lower_ascii_with_params(s, params_start as usize, &[a])),
-        ParamSource::Two(params_start, a, b) => Source::Dynamic(lower_ascii_with_params(s, params_start as usize, &[a, b])),
-        ParamSource::Custom(params_start, ref indices) => Source::Dynamic(lower_ascii_with_params(s, params_start as usize, indices)),
+        }
+        ParamSource::Utf8(params_start) => {
+            Atoms::intern(s, slash, InternParams::Utf8(params_start as usize))
+        }
+        ParamSource::One(params_start, a) => {
+            Source::Dynamic(lower_ascii_with_params(s, params_start as usize, &[a]))
+        }
+        ParamSource::Two(params_start, a, b) => {
+            Source::Dynamic(lower_ascii_with_params(s, params_start as usize, &[a, b]))
+        }
+        ParamSource::Custom(params_start, ref indices) => {
+            Source::Dynamic(lower_ascii_with_params(s, params_start as usize, indices))
+        }
     };
 
     Ok(Mime {
@@ -165,8 +170,11 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
     })
 }
 
-
-fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut start: usize) -> Result<ParamSource, ParseError> {
+fn params_from_str(
+    s: &str,
+    iter: &mut impl Iterator<Item = (usize, u8)>,
+    mut start: usize,
+) -> Result<ParamSource, ParseError> {
     let params_start = as_u16(start);
     start += 1;
     let mut params = ParamSource::None;
@@ -179,23 +187,25 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                 Some((i, b' ')) if i == start => {
                     start = i + 1;
                     continue 'params;
-                },
+                }
                 // empty param
                 Some((i, b';')) if i == start => {
                     start = i + 1;
                     continue 'params;
-                },
+                }
                 Some((_, c)) if is_token(c) => (),
                 Some((i, b'=')) if i > start => {
                     name = (as_u16(start), as_u16(i));
                     start = i + 1;
                     break 'name;
-                },
+                }
                 None => return Err(ParseError::MissingEqual),
-                Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                    pos: pos,
-                    byte: Byte(byte),
-                }),
+                Some((pos, byte)) => {
+                    return Err(ParseError::InvalidToken {
+                        pos: pos,
+                        byte: Byte(byte),
+                    })
+                }
             }
         }
 
@@ -210,27 +220,30 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                     is_quoted_pair = false;
                     match iter.next() {
                         Some((_, ch)) if is_restricted_quoted_char(ch) => (),
-                        Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                            pos: pos,
-                            byte: Byte(byte),
-                        }),
+                        Some((pos, byte)) => {
+                            return Err(ParseError::InvalidToken {
+                                pos: pos,
+                                byte: Byte(byte),
+                            })
+                        }
                         None => return Err(ParseError::MissingQuote),
                     }
-
                 } else {
                     match iter.next() {
                         Some((i, b'"')) if i > start => {
                             value = (as_u16(start), as_u16(i + 1));
                             start = i + 1;
                             break 'value;
-                        },
+                        }
                         Some((_, b'\\')) => is_quoted_pair = true,
                         Some((_, c)) if is_restricted_quoted_char(c) => (),
                         None => return Err(ParseError::MissingQuote),
-                        Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                            pos: pos,
-                            byte: Byte(byte),
-                        }),
+                        Some((pos, byte)) => {
+                            return Err(ParseError::InvalidToken {
+                                pos: pos,
+                                byte: Byte(byte),
+                            })
+                        }
                     }
                 }
             } else {
@@ -238,10 +251,9 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                     Some((i, b'"')) if i == start => {
                         is_quoted = true;
                         start = i;
-                    },
+                    }
                     Some((_, c)) if is_token(c) => (),
-                    Some((i, b' ')) |
-                    Some((i, b';')) if i > start => {
+                    Some((i, b' ')) | Some((i, b';')) if i > start => {
                         value = (as_u16(start), as_u16(i));
                         start = i + 1;
                         break 'value;
@@ -250,12 +262,14 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                         value = (as_u16(start), as_u16(s.len()));
                         start = s.len();
                         break 'value;
-                    },
+                    }
 
-                    Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
-                        byte: Byte(byte),
-                    }),
+                    Some((pos, byte)) => {
+                        return Err(ParseError::InvalidToken {
+                            pos: pos,
+                            byte: Byte(byte),
+                        })
+                    }
                 }
             }
         }
@@ -266,25 +280,26 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                 let charset = (i, "charset".len() as u16 + i);
                 let utf8 = (charset.1 + 1, charset.1 + "utf-8".len() as u16 + 1);
                 params = ParamSource::Two(params_start, (charset, utf8), (name, value));
-            },
+            }
             ParamSource::One(sc, a) => {
                 params = ParamSource::Two(sc, a, (name, value));
-            },
+            }
             ParamSource::Two(sc, a, b) => {
                 params = ParamSource::Custom(sc, vec![a, b, (name, value)]);
-            },
+            }
             ParamSource::Custom(_, ref mut vec) => {
                 vec.push((name, value));
-            },
+            }
             ParamSource::None => {
-                if params_start + 2 == name.0 &&
-                    "charset".eq_ignore_ascii_case(&s[range(name)]) &&
-                    "utf-8".eq_ignore_ascii_case(&s[range(value)]) {
+                if params_start + 2 == name.0
+                    && "charset".eq_ignore_ascii_case(&s[range(name)])
+                    && "utf-8".eq_ignore_ascii_case(&s[range(value)])
+                {
                     params = ParamSource::Utf8(params_start);
                     continue 'params;
                 }
                 params = ParamSource::One(params_start, (name, value));
-            },
+            }
         }
     }
     Ok(params)
@@ -296,22 +311,14 @@ macro_rules! byte_map {
 }
 
 static TOKEN_MAP: [bool; 256] = byte_map![
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 fn is_token(c: u8) -> bool {
@@ -333,26 +340,30 @@ mod tests {
         for (i, &valid) in super::TOKEN_MAP.iter().enumerate() {
             let i = i as u8;
             let should = match i {
-                b'a'..=b'z' |
-                b'A'..=b'Z' |
-                b'0'..=b'9' |
-                b'!' |
-                b'#' |
-                b'$' |
-                b'%' |
-                b'&' |
-                b'\'' |
-                b'+' |
-                b'-' |
-                b'.' |
-                b'^' |
-                b'_' |
-                b'`' |
-                b'|' |
-                b'~' => true,
-                _ => false
+                b'a'..=b'z'
+                | b'A'..=b'Z'
+                | b'0'..=b'9'
+                | b'!'
+                | b'#'
+                | b'$'
+                | b'%'
+                | b'&'
+                | b'\''
+                | b'+'
+                | b'-'
+                | b'.'
+                | b'^'
+                | b'_'
+                | b'`'
+                | b'|'
+                | b'~' => true,
+                _ => false,
             };
-            assert_eq!(valid, should, "{:?} ({}) should be {}", i as char, i, should);
+            assert_eq!(
+                valid, should,
+                "{:?} ({}) should be {}",
+                i as char, i, should
+            );
         }
     }
 
@@ -477,7 +488,6 @@ mod tests {
     fn error_type_spaces() {
         parse("te xt/plain").unwrap_err();
     }
-
 
     #[test]
     fn error_type_lf() {
