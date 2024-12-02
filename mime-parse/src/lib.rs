@@ -15,7 +15,7 @@ pub struct Parser {
     can_range: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Mime {
     source: Source,
     slash: u16,
@@ -23,7 +23,7 @@ pub struct Mime {
     params: ParamSource,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum Source {
     Atom(u8, &'static str),
     Dynamic(String),
@@ -41,7 +41,7 @@ impl AsRef<str> for Source {
 type Indexed = (u16, u16);
 type IndexedPair = (Indexed, Indexed);
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ParamSource {
     None,
     Utf8(u16),
@@ -50,12 +50,13 @@ pub enum ParamSource {
     Custom(u16, Vec<IndexedPair>),
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum InternParams {
     Utf8(usize),
     None,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ParseError {
     MissingSlash,
     MissingEqual,
@@ -68,7 +69,7 @@ pub enum ParseError {
     TooLong,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub struct Byte(u8);
 
 impl fmt::Debug for Byte {

@@ -165,6 +165,8 @@ impl<'a> PartialEq<Value<'a>> for str {
     }
 }
 
+impl<'a> Eq for Value<'a> {}
+
 impl<'a> From<Value<'a>> for Cow<'a, str> {
     #[inline]
     fn from(value: Value<'a>) -> Self {

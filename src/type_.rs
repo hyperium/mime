@@ -244,6 +244,8 @@ impl PartialEq<MediaType> for str {
     }
 }
 
+impl Eq for MediaType {}
+
 impl FromStr for MediaType {
     type Err = InvalidMime;
 
