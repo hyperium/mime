@@ -403,7 +403,7 @@ names! {
     // common application/*
     JSON, "json";
     WWW_FORM_URLENCODED, "x-www-form-urlencoded";
-    MSGPACK, "msgpack";
+    MSGPACK, "vnd.msgpack";
     OCTET_STREAM, "octet-stream";
     PDF, "pdf";
 
@@ -463,7 +463,7 @@ mimes! {
     APPLICATION_JAVASCRIPT_UTF_8, "application/javascript; charset=utf-8", 11, None, 22;
     APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded", 11;
     APPLICATION_OCTET_STREAM, "application/octet-stream", 11;
-    APPLICATION_MSGPACK, "application/msgpack", 11;
+    APPLICATION_MSGPACK, "application/vnd.msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
     APPLICATION_DNS, "application/dns-message", 11;
 

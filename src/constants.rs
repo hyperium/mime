@@ -106,7 +106,7 @@ mimes! {
     APPLICATION_JAVASCRIPT_UTF_8, "application/javascript; charset=utf-8";
     APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded";
     APPLICATION_OCTET_STREAM, "application/octet-stream";
-    APPLICATION_MSGPACK, "application/msgpack";
+    APPLICATION_MSGPACK, "application/vnd.msgpack";
     APPLICATION_PDF, "application/pdf";
     APPLICATION_DNS, "application/dns-message";
 
