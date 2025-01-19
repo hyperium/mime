@@ -294,6 +294,24 @@ impl Atoms {
                                 return Atoms::AUDIO_STAR;
                             }
                         },
+                        3 => {
+                            if sub == OGG {
+                                return Atoms::AUDIO_OGG;
+                            }
+                            if sub == MP4 {
+                                return Atoms::AUDIO_MP4;
+                            }
+                        }
+                        4 => {
+                            if sub == MPEG {
+                                return Atoms::AUDIO_MPEG;
+                            }
+                        },
+                        5 => {
+                            if sub == BASIC {
+                                return Atoms::AUDIO_BASIC;
+                            }
+                        },
                         _ => (),
                     }
                 }
@@ -467,6 +485,11 @@ mimes! {
     APPLICATION_PDF, "application/pdf", 11;
     APPLICATION_DNS, "application/dns-message", 11;
 
+    AUDIO_BASIC, "audio/basic", 5;
+    AUDIO_MPEG, "audio/mpeg", 5;
+    AUDIO_MP4, "audio/mp4", 5;
+    AUDIO_OGG, "audio/ogg", 5;
+
     // media-ranges
     //@ MediaRange:
     STAR_STAR, "*/*", 1;
@@ -475,4 +498,3 @@ mimes! {
     VIDEO_STAR, "video/*", 5;
     AUDIO_STAR, "audio/*", 5;
 }
-

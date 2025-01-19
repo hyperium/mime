@@ -110,6 +110,11 @@ mimes! {
     APPLICATION_PDF, "application/pdf";
     APPLICATION_DNS, "application/dns-message";
 
+    AUDIO_BASIC, "audio/basic";
+    AUDIO_MPEG, "audio/mpeg";
+    AUDIO_MP4, "audio/mp4";
+    AUDIO_OGG, "audio/ogg";
+
     // media-ranges
     @ MediaRange:
     STAR_STAR, "*/*";
@@ -118,4 +123,3 @@ mimes! {
     VIDEO_STAR, "video/*";
     AUDIO_STAR, "audio/*";
 }
-
