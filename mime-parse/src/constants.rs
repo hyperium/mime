@@ -331,6 +331,16 @@ impl Atoms {
                                 return Atoms::APPLICATION_OCTET_STREAM;
                             }
                         }
+                        // 13 => {
+                        //     if sub == PGP_ENCRYPTED [
+                        //         return Atoms::APPLICATION_PGP_ENCRYPTED;
+                        //     ]
+                        // }
+                        // 13 => {
+                        //     if sub == PGP_SIGNATURE [
+                        //         return Atoms::APPLICATION_PGP_SIGNATURE;
+                        //     ]
+                        // }
                         21 => {
                             if sub == WWW_FORM_URLENCODED {
                                 return Atoms::APPLICATION_WWW_FORM_URLENCODED;
@@ -407,12 +417,19 @@ names! {
     OCTET_STREAM, "octet-stream";
     PDF, "pdf";
 
+    // Security Multiparts for MIME (RFC 1847)
+    PGP_ENCRYPTED, "pgp-encrypted";
+    PGP_SIGNATURE, "pgp-signature";
+
     // common font/*
     WOFF, "woff";
     WOFF2, "woff2";
 
     // multipart/*
     FORM_DATA, "form-data";
+    // Security Multiparts for MIME (RFC 1847)
+    ENCRYPTED, "encrypted";
+    SIGNED, "signed";
 
     // common image/*
     BMP, "bmp";
@@ -466,6 +483,9 @@ mimes! {
     APPLICATION_MSGPACK, "application/msgpack", 11;
     APPLICATION_PDF, "application/pdf", 11;
     APPLICATION_DNS, "application/dns-message", 11;
+    // Security Multiparts for MIME (RFC 1847)
+    APPLICATION_PGP_ENCRYPTED, "application/pgp-encrypted", 11;
+    APPLICATION_PGP_SIGNATURE, "application/pgp-signature", 11;
 
     // media-ranges
     //@ MediaRange:
