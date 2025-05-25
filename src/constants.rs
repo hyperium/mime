@@ -109,6 +109,7 @@ mimes! {
     APPLICATION_MSGPACK, "application/msgpack";
     APPLICATION_PDF, "application/pdf";
     APPLICATION_DNS, "application/dns-message";
+    APPLICATION_XML, "application/xml";
 
     // media-ranges
     @ MediaRange:
