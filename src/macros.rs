@@ -64,6 +64,7 @@ impl MediaType {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use alloc::string::ToString;
 
     #[test]
     fn media_type_atom() {

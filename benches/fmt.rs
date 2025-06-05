@@ -7,7 +7,7 @@ use test::Bencher;
 
 #[bench]
 fn bench_fmt(b: &mut Bencher) {
-    use std::fmt::Write;
+    use core::fmt::Write;
     let mime = ::mime::TEXT_PLAIN_UTF_8;
     b.bytes = mime.to_string().as_bytes().len() as u64;
     let mut s = String::with_capacity(64);

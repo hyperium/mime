@@ -1,4 +1,4 @@
-use std::fmt;
+use core::fmt;
 
 use serde1::de::{self, Deserialize, Deserializer};
 use serde1::ser::{Serialize, Serializer};

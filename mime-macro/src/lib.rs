@@ -34,8 +34,8 @@ pub fn media_type(tokens: TokenStream) -> TokenStream {
     };
     let slash = mime.private_subtype_offset();
     let plus = match mime.private_suffix_offset() {
-        Some(i) => quote! { ::std::option::Option::Some(#i) },
-        None => quote! { ::std::option::Option::None },
+        Some(i) => quote! { ::core::option::Option::Some(#i) },
+        None => quote! { ::core::option::Option::None },
     };
     let params = match mime.private_params_source() {
         mime_parse::ParamSource::None => quote! { $crate::private::ParamSource::None },

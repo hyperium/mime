@@ -53,7 +53,7 @@ use crate::{
 
 pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> {
     let s = src.as_str();
-    if s.len() > std::u16::MAX as usize {
+    if s.len() > core::u16::MAX as usize {
         return Err(ParseError::TooLong);
     }
 
@@ -271,7 +271,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                 params = ParamSource::Two(sc, a, (name, value));
             },
             ParamSource::Two(sc, a, b) => {
-                params = ParamSource::Custom(sc, vec![a, b, (name, value)]);
+                params = ParamSource::Custom(sc, alloc::vec![a, b, (name, value)]);
             },
             ParamSource::Custom(_, ref mut vec) => {
                 vec.push((name, value));

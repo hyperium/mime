@@ -2,8 +2,15 @@
 //!
 //! Nothing to see here. Move along.
 
-use std::error::Error;
-use std::{fmt, slice};
+#![no_std]
+
+extern crate alloc;
+
+use alloc::borrow::ToOwned;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::error::Error;
+use core::{fmt, slice};
 
 pub mod constants;
 mod rfc7231;
@@ -256,12 +263,12 @@ impl fmt::Display for Mime {
 
 #[inline]
 fn as_u16(i: usize) -> u16 {
-    debug_assert!(i <= std::u16::MAX as usize, "as_u16 overflow");
+    debug_assert!(i <= core::u16::MAX as usize, "as_u16 overflow");
     i as u16
 }
 
 #[inline]
-fn range(index: (u16, u16)) -> std::ops::Range<usize> {
+fn range(index: (u16, u16)) -> core::ops::Range<usize> {
     index.0 as usize .. index.1 as usize
 }
 

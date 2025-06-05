@@ -1,6 +1,5 @@
-use std::fmt;
-use std::str::FromStr;
-
+use core::fmt;
+use core::str::FromStr;
 use mime_parse::{Mime, Parse};
 
 use crate::{InvalidMime, Value};
@@ -275,17 +274,18 @@ impl fmt::Display for MediaType {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use alloc::string::{String, ToString};
 
     #[test]
     fn test_size_of() {
         assert!(
-            std::mem::size_of::<MediaType>() < 100,
+            core::mem::size_of::<MediaType>() < 100,
             "just to be warned if the size grows suddenly"
         );
 
         assert_eq!(
-            std::mem::size_of::<MediaType>(),
-            std::mem::size_of::<Option<MediaType>>(),
+            core::mem::size_of::<MediaType>(),
+            core::mem::size_of::<Option<MediaType>>(),
             "option size optimization"
         );
     }
@@ -384,7 +384,7 @@ mod tests {
 
     #[test]
     fn test_parse_too_long() {
-        let mut source = vec![b'a'; ::std::u16::MAX as usize];
+        let mut source = alloc::vec![b'a'; ::core::u16::MAX as usize];
         source[5] = b'/';
 
         let mut s = String::from_utf8(source).unwrap();

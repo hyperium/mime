@@ -2,6 +2,7 @@
 #![deny(warnings)]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
+#![no_std]
 
 //! # MediaType and MediaRange
 //!
@@ -80,6 +81,9 @@
 //!     Err(err) => panic!("that's a bad range: {}", err),
 //! }
 //! ```
+
+extern crate alloc;
+
 #[cfg(feature = "macro")]
 use proc_macro_hack::proc_macro_hack;
 

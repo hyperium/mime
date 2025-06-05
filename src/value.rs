@@ -1,6 +1,6 @@
-use std::cmp::PartialEq;
-use std::fmt;
-use std::borrow::Cow;
+use core::cmp::PartialEq;
+use core::fmt;
+use alloc::borrow::Cow;
 
 use mime_parse::Mime;
 use quoted_string::{self, ContentChars, AsciiCaseInsensitiveEq};
@@ -188,9 +188,9 @@ impl<'a> fmt::Display for Value<'a> {
 
 #[cfg(test)]
 mod test {
-    use std::borrow::Cow;
-    use std::cmp::PartialEq;
-    use std::fmt::Debug;
+    use alloc::borrow::Cow;
+    use core::cmp::PartialEq;
+    use core::fmt::Debug;
 
     use super::Value;
 
