@@ -8,7 +8,7 @@ description = "Strongly Typed Mimes"
 documentation = "https://docs.rs/mime"
 repository = "https://github.com/hyperium/mime"
 keywords = ["mime", "media-extensions", "media-types"]
-edition = "2018"
+edition = "2024"
 
 publish = false # breaking changes from 0.3.x
 

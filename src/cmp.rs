@@ -9,7 +9,7 @@ pub(crate) fn str_eq(mime: &Mime, s: &str) -> bool {
             })
             .unwrap_or(false)
     } else {
-        mime.as_ref().eq_ignore_ascii_case(s)
+        mime.const_as_ref().eq_ignore_ascii_case(s)
     }
 }
 

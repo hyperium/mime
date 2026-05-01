@@ -166,10 +166,8 @@ impl Atoms {
                 return Atoms::TEXT_TAB_SEPARATED_VALUES_UTF_8;
             }
         }
-        if top == APPLICATION {
-            if sub == JAVASCRIPT {
-                return Atoms::APPLICATION_JAVASCRIPT_UTF_8;
-            }
+        if top == APPLICATION && sub == JAVASCRIPT {
+            return Atoms::APPLICATION_JAVASCRIPT_UTF_8;
         }
 
         Atoms::dynamic(s)
@@ -184,10 +182,8 @@ impl Atoms {
             4 => {
                 if top == TEXT {
                     match sub.len() {
-                        1 => {
-                            if sub.as_bytes()[0] == b'*' {
-                                return Atoms::TEXT_STAR;
-                            }
+                        1 if sub.as_bytes()[0] == b'*' => {
+                            return Atoms::TEXT_STAR;
                         }
                         3 => {
                             if sub == CSS {
@@ -200,10 +196,8 @@ impl Atoms {
                                 return Atoms::TEXT_CSV;
                             }
                         },
-                        4 => {
-                            if sub == HTML {
-                                return Atoms::TEXT_HTML;
-                            }
+                        4 if sub == HTML => {
+                            return Atoms::TEXT_HTML;
                         }
                         5 => {
                             if sub == PLAIN {
@@ -213,34 +207,24 @@ impl Atoms {
                                 return Atoms::TEXT_VCARD;
                             }
                         }
-                        10 => {
-                            if sub == JAVASCRIPT {
-                                return Atoms::TEXT_JAVASCRIPT;
-                            }
+                        10 if sub == JAVASCRIPT => {
+                            return Atoms::TEXT_JAVASCRIPT;
                         }
-                        12 => {
-                            if sub == EVENT_STREAM {
-                                return Atoms::TEXT_EVENT_STREAM;
-                            }
+                        12 if sub == EVENT_STREAM => {
+                            return Atoms::TEXT_EVENT_STREAM;
                         },
-                        20 => {
-                            if sub == TAB_SEPARATED_VALUES {
-                                return Atoms::TEXT_TAB_SEPARATED_VALUES;
-                            }
+                        20 if sub == TAB_SEPARATED_VALUES => {
+                            return Atoms::TEXT_TAB_SEPARATED_VALUES;
                         }
                         _ => (),
                     }
                 } else if top == FONT {
                     match sub.len() {
-                        4 => {
-                            if sub == WOFF {
-                                return Atoms::FONT_WOFF;
-                            }
+                        4 if sub == WOFF => {
+                            return Atoms::FONT_WOFF;
                         },
-                        5 => {
-                            if sub == WOFF2 {
-                                return Atoms::FONT_WOFF2;
-                            }
+                        5 if sub == WOFF2 => {
+                            return Atoms::FONT_WOFF2;
                         },
                         _ => (),
                     }
@@ -249,10 +233,8 @@ impl Atoms {
             5 => {
                 if top == IMAGE {
                     match sub.len() {
-                        1 => {
-                            if sub.as_bytes()[0] == b'*' {
-                                return Atoms::IMAGE_STAR;
-                            }
+                        1 if sub.as_bytes()[0] == b'*' => {
+                            return Atoms::IMAGE_STAR;
                         }
                         3 => {
                             if sub == PNG {
@@ -265,79 +247,49 @@ impl Atoms {
                                 return Atoms::IMAGE_BMP;
                             }
                         }
-                        4 => {
-                            if sub == JPEG {
-                                return Atoms::IMAGE_JPEG;
-                            }
+                        4 if sub == JPEG => {
+                            return Atoms::IMAGE_JPEG;
                         },
-                        7 => {
-                            if sub == SVG {
-                                return Atoms::IMAGE_SVG;
-                            }
+                        7 if sub == SVG => {
+                            return Atoms::IMAGE_SVG;
                         },
                         _ => (),
 
                     }
-                } else if top == VIDEO {
-                    match sub.len() {
-                        1 => {
-                            if sub.as_bytes()[0] == b'*' {
-                                return Atoms::VIDEO_STAR;
-                            }
-                        },
-                        _ => (),
-                    }
-                } else if top == AUDIO {
-                    match sub.len() {
-                        1 => {
-                            if sub.as_bytes()[0] == b'*' {
-                                return Atoms::AUDIO_STAR;
-                            }
-                        },
-                        _ => (),
-                    }
+                } else if top == VIDEO
+                    && sub.len() == 1 && sub.as_bytes()[0] == b'*'
+                {
+                    return Atoms::VIDEO_STAR;
+                } else if top == AUDIO
+                    && sub.len() == 1 && sub.as_bytes()[0] == b'*'
+                {
+                    return Atoms::AUDIO_STAR;
                 }
             },
-            11 => {
-                if top == APPLICATION {
-                    match sub.len() {
-                        3 => {
-                            if sub == PDF {
-                                return Atoms::APPLICATION_PDF;
-                            }
-                        }
-                        4 => {
-                            if sub == JSON {
-                                return Atoms::APPLICATION_JSON;
-                            }
-                        },
-                        7 => {
-                            if sub == MSGPACK {
-                                return Atoms::APPLICATION_MSGPACK;
-                            }
-                        },
-                        10 => {
-                            if sub == JAVASCRIPT {
-                                return Atoms::APPLICATION_JAVASCRIPT;
-                            }
-                        },
-                        11 => {
-                            if sub == "dns-message" {
-                                return Atoms::APPLICATION_DNS;
-                            }
-                        },
-                        12 => {
-                            if sub == OCTET_STREAM {
-                                return Atoms::APPLICATION_OCTET_STREAM;
-                            }
-                        }
-                        21 => {
-                            if sub == WWW_FORM_URLENCODED {
-                                return Atoms::APPLICATION_WWW_FORM_URLENCODED;
-                            }
-                        }
-                        _ => (),
+            11 if top == APPLICATION => {
+                match sub.len() {
+                    3 if sub == PDF => {
+                        return Atoms::APPLICATION_PDF;
                     }
+                    4 if sub == JSON => {
+                        return Atoms::APPLICATION_JSON;
+                    },
+                    7 if sub == MSGPACK => {
+                        return Atoms::APPLICATION_MSGPACK;
+                    },
+                    10 if sub == JAVASCRIPT => {
+                        return Atoms::APPLICATION_JAVASCRIPT;
+                    },
+                    11 if sub == "dns-message" => {
+                        return Atoms::APPLICATION_DNS;
+                    },
+                    12 if sub == OCTET_STREAM => {
+                        return Atoms::APPLICATION_OCTET_STREAM;
+                    }
+                    21 if sub == WWW_FORM_URLENCODED => {
+                        return Atoms::APPLICATION_WWW_FORM_URLENCODED;
+                    }
+                    _ => (),
                 }
             }
             _ => (),

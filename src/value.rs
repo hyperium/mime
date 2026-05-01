@@ -38,7 +38,7 @@ pub(crate) fn param<'a>(mime: &'a Mime, key: &str) -> Option<Value<'a>> {
 }
 
 impl<'a> Value<'a> {
-    fn new(source: &'a str) -> Self {
+    const fn new(source: &'a str) -> Self {
         Value {
             source,
             ascii_case_insensitive: false,
@@ -69,7 +69,7 @@ impl<'a> Value<'a> {
     /// let param = mime.param("param").unwrap();
     /// assert_eq!(param.as_str_repr(), r#""abc def""#);
     /// ```
-    pub fn as_str_repr(&self) -> &'a str {
+    pub const fn as_str_repr(&self) -> &'a str {
         self.source
     }
 
@@ -151,7 +151,7 @@ impl<'a, 'b> PartialEq<&'b str> for Value<'a> {
 }
 
 
-impl<'a, 'b> PartialEq<Value<'b>> for &'a str {
+impl<'b> PartialEq<Value<'b>> for &str {
     #[inline]
     fn eq(&self, other: &Value<'b>) -> bool {
         other == self

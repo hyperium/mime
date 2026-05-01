@@ -53,7 +53,7 @@ use crate::{
 
 pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> {
     let s = src.as_str();
-    if s.len() > std::u16::MAX as usize {
+    if s.len() > u16::MAX as usize {
         return Err(ParseError::TooLong);
     }
 
@@ -79,7 +79,7 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
             },
             None => return Err(ParseError::MissingSlash), // EOF and no toplevel is no Mime
             Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                pos: pos,
+                pos,
                 byte: Byte(byte),
             }),
         };
@@ -131,7 +131,7 @@ pub(crate) fn parse(opts: &Parser, src: impl Parse) -> Result<Mime, ParseError> 
                 });
             },
             Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                pos: pos,
+                pos,
                 byte: Byte(byte),
             })
         };
@@ -193,7 +193,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                 },
                 None => return Err(ParseError::MissingEqual),
                 Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                    pos: pos,
+                    pos,
                     byte: Byte(byte),
                 }),
             }
@@ -211,7 +211,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                     match iter.next() {
                         Some((_, ch)) if is_restricted_quoted_char(ch) => (),
                         Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                            pos: pos,
+                            pos,
                             byte: Byte(byte),
                         }),
                         None => return Err(ParseError::MissingQuote),
@@ -228,7 +228,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                         Some((_, c)) if is_restricted_quoted_char(c) => (),
                         None => return Err(ParseError::MissingQuote),
                         Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                            pos: pos,
+                            pos,
                             byte: Byte(byte),
                         }),
                     }
@@ -253,7 +253,7 @@ fn params_from_str(s: &str, iter: &mut impl Iterator<Item=(usize, u8)>, mut star
                     },
 
                     Some((pos, byte)) => return Err(ParseError::InvalidToken {
-                        pos: pos,
+                        pos,
                         byte: Byte(byte),
                     }),
                 }
@@ -314,11 +314,11 @@ static TOKEN_MAP: [bool; 256] = byte_map![
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
-fn is_token(c: u8) -> bool {
+const fn is_token(c: u8) -> bool {
     TOKEN_MAP[c as usize]
 }
 
-fn is_restricted_quoted_char(c: u8) -> bool {
+const fn is_restricted_quoted_char(c: u8) -> bool {
     c == 9 || (c > 31 && c != 127)
 }
 

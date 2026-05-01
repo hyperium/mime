@@ -6,7 +6,7 @@ description = "mime procedural macros"
 repository = "https://github.com/hyperium/mime"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 license = "MIT"
-edition = "2018"
+edition = "2024"
 
 [lib]
 name = "mime_macro"

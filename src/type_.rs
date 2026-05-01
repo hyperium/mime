@@ -85,7 +85,7 @@ impl MediaType {
     /// assert_eq!(mime.type_(), mime::TEXT);
     /// ```
     #[inline]
-    pub fn type_(&self) -> &str {
+    pub const fn type_(&self) -> &str {
         self.mime.type_()
     }
 
@@ -180,7 +180,7 @@ impl MediaType {
     /// assert_eq!(plain_text_utf8.has_params(), true);
     /// ```
     #[inline]
-    pub fn has_params(&self) -> bool {
+    pub const fn has_params(&self) -> bool {
         self.mime.has_params()
     }
 
@@ -209,6 +209,18 @@ impl MediaType {
     pub(super) fn test_assert_asterisks(&self) {
         assert!(!self.as_ref().contains('*'), "{:?} contains an asterisk", self);
     }
+
+    /// Converts this type into a shared string slice reference
+    #[doc(alias = "as_ref")]
+    pub const fn const_as_ref(&self) -> &str {
+        self.mime.const_as_ref()
+    }
+}
+
+impl AsRef<str> for MediaType {
+    fn as_ref(&self) -> &str {
+        self.const_as_ref()
+    }
 }
 
 impl PartialEq for MediaType {
@@ -223,14 +235,14 @@ impl PartialEq<str> for MediaType {
     }
 }
 
-impl<'a> PartialEq<&'a str> for MediaType {
+impl PartialEq<&str> for MediaType {
     #[inline]
-    fn eq(&self, s: & &'a str) -> bool {
+    fn eq(&self, s: & &str) -> bool {
         self == *s
     }
 }
 
-impl<'a> PartialEq<MediaType> for &'a str {
+impl PartialEq<MediaType> for &str {
     #[inline]
     fn eq(&self, mt: &MediaType) -> bool {
         mt == self
@@ -249,12 +261,6 @@ impl FromStr for MediaType {
 
     fn from_str(s: &str) -> Result<MediaType, Self::Err> {
         MediaType::parse(s)
-    }
-}
-
-impl AsRef<str> for MediaType {
-    fn as_ref(&self) -> &str {
-        self.mime.as_ref()
     }
 }
 

@@ -29,12 +29,18 @@ pub enum Source {
     Dynamic(String),
 }
 
-impl AsRef<str> for Source {
-    fn as_ref(&self) -> &str {
+impl Source {
+    const fn const_as_ref(&self) -> &str {
         match *self {
             Source::Atom(_, s) => s,
-            Source::Dynamic(ref s) => s,
+            Source::Dynamic(ref s) => s.as_str(),
         }
+    }
+}
+
+impl AsRef<str> for Source {
+    fn as_ref(&self) -> &str {
+        self.const_as_ref()
     }
 }
 
@@ -110,29 +116,29 @@ impl fmt::Display for ParseError {
 
 impl Mime {
     #[inline]
-    pub fn type_(&self) -> &str {
-        &self.source.as_ref()[..self.slash as usize]
+    pub const fn type_(&self) -> &str {
+        self.source.const_as_ref().split_at(self.slash as usize).0
     }
 
     #[inline]
     pub fn subtype(&self) -> &str {
         let end = self.semicolon_or_end();
-        &self.source.as_ref()[self.slash as usize + 1..end]
+        &self.source.const_as_ref()[self.slash as usize + 1..end]
     }
 
     #[doc(hidden)]
-    pub fn private_subtype_offset(&self) -> u16 {
+    pub const fn private_subtype_offset(&self) -> u16 {
         self.slash
     }
 
     #[inline]
     pub fn suffix(&self) -> Option<&str> {
         let end = self.semicolon_or_end();
-        self.plus.map(|idx| &self.source.as_ref()[idx as usize + 1..end])
+        self.plus.map(|idx| &self.source.const_as_ref()[idx as usize + 1..end])
     }
 
     #[doc(hidden)]
-    pub fn private_suffix_offset(&self) -> Option<u16> {
+    pub const fn private_suffix_offset(&self) -> Option<u16> {
         self.plus
     }
 
@@ -155,7 +161,7 @@ impl Mime {
     }
 
     #[doc(hidden)]
-    pub fn private_params_source(&self) -> &ParamSource {
+    pub const fn private_params_source(&self) -> &ParamSource {
         &self.params
     }
 
@@ -164,7 +170,7 @@ impl Mime {
     }
 
     #[inline]
-    pub fn has_params(&self) -> bool {
+    pub const fn has_params(&self) -> bool {
         self.semicolon().is_some()
     }
 
@@ -178,7 +184,7 @@ impl Mime {
         let mut mtype = self;
         mtype.params = ParamSource::None;
         mtype.source = Atoms::intern(
-            &mtype.source.as_ref()[..semicolon],
+            &mtype.source.const_as_ref()[..semicolon],
             mtype.slash,
             InternParams::None,
         );
@@ -186,7 +192,7 @@ impl Mime {
     }
 
     #[inline]
-    fn semicolon(&self) -> Option<usize> {
+    const fn semicolon(&self) -> Option<usize> {
         match self.params {
             ParamSource::Utf8(i) |
             ParamSource::One(i, ..) |
@@ -197,24 +203,27 @@ impl Mime {
     }
 
     #[inline]
-    fn semicolon_or_end(&self) -> usize {
-        self.semicolon().unwrap_or_else(|| self.source.as_ref().len())
+    const fn semicolon_or_end(&self) -> usize {
+        match self.semicolon() {
+            Some(s) => s,
+            None => self.source.const_as_ref().len(),
+        }
     }
 
     #[doc(hidden)]
-    pub fn private_atom(&self) -> u8 {
+    pub const fn private_atom(&self) -> u8 {
         self.atom()
     }
 
-    fn atom(&self) -> u8 {
+    const fn atom(&self) -> u8 {
         match self.source {
             Source::Atom(a, _) => a,
             Source::Dynamic(_) => 0,
         }
     }
 
-    pub fn essence(&self) -> &str {
-        &self.source.as_ref()[..self.semicolon_or_end()]
+    pub const fn essence(&self) -> &str {
+        self.source.const_as_ref().split_at(self.semicolon_or_end()).0
     }
 
     #[doc(hidden)]
@@ -233,10 +242,17 @@ impl Mime {
     }
 }
 
+impl Mime {
+    #[inline]
+    pub const fn const_as_ref(&self) -> &str {
+        self.source.const_as_ref()
+    }
+}
+
 impl AsRef<str> for Mime {
     #[inline]
     fn as_ref(&self) -> &str {
-        self.source.as_ref()
+        self.const_as_ref()
     }
 }
 
@@ -255,13 +271,13 @@ impl fmt::Display for Mime {
 }
 
 #[inline]
-fn as_u16(i: usize) -> u16 {
-    debug_assert!(i <= std::u16::MAX as usize, "as_u16 overflow");
+const fn as_u16(i: usize) -> u16 {
+    debug_assert!(i <= u16::MAX as usize, "as_u16 overflow");
     i as u16
 }
 
 #[inline]
-fn range(index: (u16, u16)) -> std::ops::Range<usize> {
+const fn range(index: (u16, u16)) -> std::ops::Range<usize> {
     index.0 as usize .. index.1 as usize
 }
 
@@ -269,14 +285,14 @@ fn range(index: (u16, u16)) -> std::ops::Range<usize> {
 
 impl Parser {
     #[inline]
-    pub fn can_range() -> Self {
+    pub const fn can_range() -> Self {
         Parser {
             can_range: true,
         }
     }
 
     #[inline]
-    pub fn cannot_range() -> Self {
+    pub const fn cannot_range() -> Self {
         Parser {
             can_range: false,
         }
@@ -398,19 +414,19 @@ mod sealed {
 
 pub trait Parse: Sealed {}
 
-impl<'a> Sealed for &'a str {
+impl Sealed for &str {
     fn as_str(&self) -> &str {
         self
     }
 }
 
-impl<'a> Parse for &'a str {}
+impl Parse for &str {}
 
-impl<'a> Sealed for &'a String {
+impl Sealed for &String {
     fn as_str(&self) -> &str {
-        *self
+        self
     }
 }
 
-impl<'a> Parse for &'a String {}
+impl Parse for &String {}
 
