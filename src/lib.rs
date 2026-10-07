@@ -263,113 +263,18 @@ fn eq_ascii(a: &str, b: &str) -> bool {
 }
 
 fn mime_eq_str(mime: &Mime, s: &str) -> bool {
-    if let ParamSource::Utf8(semicolon) = mime.params {
-        if mime.source.as_ref().len() == s.len() {
-            eq_ascii(mime.source.as_ref(), s)
-        } else {
-            params_eq(semicolon, mime.source.as_ref(), s)
-        }
-    } else if let Some(semicolon) = mime.semicolon() {
-        params_eq(semicolon, mime.source.as_ref(), s)
-    } else {
-        eq_ascii(mime.source.as_ref(), s)
+    if mime.source.as_ref() == s {
+        return true;
     }
-}
+    if mime.semicolon().is_none() {
+        return eq_ascii(mime.source.as_ref(), s);
+    }
 
-fn params_eq(semicolon: usize, a: &str, b: &str) -> bool {
-    if b.len() < semicolon + 1 {
-        false
-    } else if !eq_ascii(&a[..semicolon], &b[..semicolon]) {
-        false
-    } else {
-        // gotta check for quotes, LWS, and for case senstive names
-        let mut a = &a[semicolon + 1..];
-        let mut b = &b[semicolon + 1..];
-        let mut sensitive;
-
-        loop {
-            a = a.trim();
-            b = b.trim();
-
-            match (a.is_empty(), b.is_empty()) {
-                (true, true) => return true,
-                (true, false) | (false, true) => return false,
-                (false, false) => (),
-            }
-
-            //name
-            if let Some(a_idx) = a.find('=') {
-                let a_name = {
-                    #[allow(deprecated)]
-                    {
-                        a[..a_idx].trim_left()
-                    }
-                };
-                if let Some(b_idx) = b.find('=') {
-                    let b_name = {
-                        #[allow(deprecated)]
-                        {
-                            b[..b_idx].trim_left()
-                        }
-                    };
-                    if !eq_ascii(a_name, b_name) {
-                        return false;
-                    }
-                    sensitive = a_name != CHARSET;
-                    a = &a[..a_idx];
-                    b = &b[..b_idx];
-                } else {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-            //value
-            let a_quoted = if a.as_bytes()[0] == b'"' {
-                a = &a[1..];
-                true
-            } else {
-                false
-            };
-            let b_quoted = if b.as_bytes()[0] == b'"' {
-                b = &b[1..];
-                true
-            } else {
-                false
-            };
-
-            let a_end = if a_quoted {
-                if let Some(quote) = a.find('"') {
-                    quote
-                } else {
-                    return false;
-                }
-            } else {
-                a.find(';').unwrap_or(a.len())
-            };
-
-            let b_end = if b_quoted {
-                if let Some(quote) = b.find('"') {
-                    quote
-                } else {
-                    return false;
-                }
-            } else {
-                b.find(';').unwrap_or(b.len())
-            };
-
-            if sensitive {
-                if !eq_ascii(&a[..a_end], &b[..b_end]) {
-                    return false;
-                }
-            } else {
-                if &a[..a_end] != &b[..b_end] {
-                    return false;
-                }
-            }
-            a = &a[a_end..];
-            b = &b[b_end..];
-        }
+    // Parse before comparing parameters, so arbitrary strings cannot cause
+    // invalid UTF-8 slicing and quoted values use the same rules as Mime.
+    match s.parse::<Mime>() {
+        Ok(other) => mime == &other,
+        Err(_) => false,
     }
 }
 
@@ -377,12 +282,9 @@ impl PartialEq for Mime {
     #[inline]
     fn eq(&self, other: &Mime) -> bool {
         match (self.atom(), other.atom()) {
-            // TODO:
-            // This could optimize for when there are no customs parameters.
-            // Any parsed mime has already been lowercased, so if there aren't
-            // any parameters that are case sensistive, this can skip the
-            // eq_ascii, and just use a memcmp instead.
-            (0, _) | (_, 0) => mime_eq_str(self, other.source.as_ref()),
+            (0, _) | (_, 0) => {
+                self.essence_str() == other.essence_str() && self.params().eq(other.params())
+            }
             (a, b) => a == b,
         }
     }
@@ -398,13 +300,22 @@ impl PartialOrd for Mime {
 
 impl Ord for Mime {
     fn cmp(&self, other: &Mime) -> Ordering {
-        self.source.as_ref().cmp(other.source.as_ref())
+        match self.essence_str().cmp(other.essence_str()) {
+            Ordering::Equal => self.params().cmp(other.params()),
+            ordering => ordering,
+        }
     }
 }
 
 impl Hash for Mime {
     fn hash<T: Hasher>(&self, hasher: &mut T) {
-        hasher.write(self.source.as_ref().as_bytes());
+        self.essence_str().hash(hasher);
+        let mut count = 0usize;
+        for param in self.params() {
+            param.hash(hasher);
+            count += 1;
+        }
+        count.hash(hasher);
     }
 }
 

@@ -59,47 +59,44 @@ impl<'a> Iterator for MimeIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let start = self.pos;
-            let len = self.source.bytes().len();
+            let len = self.source.len();
 
             if start >= len {
                 return None;
             }
 
-            // Try parsing the whole remaining slice, until the end
-            return match parse(&self.source[start..len]) {
+            match parse(&self.source[start..]) {
                 Ok(value) => {
                     self.pos = len;
-                    Some(Ok(value))
+                    return Some(Ok(value));
                 }
                 Err(ParseError::InvalidToken { pos, .. }) => {
-                    // The first token is immediately found to be wrong by `parse`. Skip it
+                    // The parser rejects non-ASCII bytes at the start of a
+                    // character. Skip the entire character, not just one byte.
+                    let invalid = start + pos;
+                    let next = invalid + self.source[invalid..].chars().next().unwrap().len_utf8();
                     if pos == 0 {
-                        self.pos += 1;
+                        self.pos = next;
                         continue;
                     }
-                    let slice = &self.source[start..start + pos];
-                    // Try parsing the longest slice (until the first invalid token)
-                    match parse(slice) {
+                    let slice = &self.source[start..invalid];
+                    return match parse(slice) {
                         Ok(mime) => {
-                            self.pos = start + pos + 1;
+                            self.pos = next;
                             Some(Ok(mime))
                         }
                         Err(_) => {
-                            if start + pos < len {
-                                // Skip this invalid slice,
-                                // try parsing the remaining slice in the next iteration
-                                self.pos = start + pos;
-                                Some(Err(slice))
-                            } else {
-                                None
-                            }
+                            self.pos = invalid;
+                            Some(Err(slice))
                         }
-                    }
+                    };
                 }
-                // Do not process any other error condition: the slice is malformed and
-                // no character is found to be invalid: a character is missing
-                Err(_) => None,
-            };
+                // No invalid character was found; the input is incomplete.
+                Err(_) => {
+                    self.pos = len;
+                    return None;
+                }
+            }
         }
     }
 }
@@ -301,7 +298,9 @@ fn params_from_str(
             }
             ParamSource::None => {
                 if semicolon + 2 == name.0 && CHARSET == &s[name.0..name.1] {
-                    if UTF_8 == &s[value.0..value.1] {
+                    // The compact form reconstructs fixed, unquoted offsets
+                    // if another parameter follows. Quotes change those offsets.
+                    if !is_quoted && UTF_8 == &s[value.0..value.1] {
                         params = ParamSource::Utf8(semicolon);
                         continue 'params;
                     }
