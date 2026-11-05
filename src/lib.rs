@@ -135,7 +135,7 @@ impl Mime {
     /// assert_eq!(mime.type_(), mime::TEXT);
     /// ```
     #[inline]
-    pub fn type_(&self) -> Name {
+    pub fn type_<'a>(&'a self) -> Name<'a> {
         Name {
             source: &self.source.as_ref()[..self.slash],
             insensitive: true,
@@ -152,7 +152,7 @@ impl Mime {
     /// assert_eq!(mime.subtype(), mime::PLAIN);
     /// ```
     #[inline]
-    pub fn subtype(&self) -> Name {
+    pub fn subtype<'a>(&'a self) -> Name<'a> {
         let end = self
             .plus
             .unwrap_or_else(|| return self.semicolon().unwrap_or(self.source.as_ref().len()));
@@ -175,7 +175,7 @@ impl Mime {
     /// assert!(mime::TEXT_PLAIN.suffix().is_none());
     /// ```
     #[inline]
-    pub fn suffix(&self) -> Option<Name> {
+    pub fn suffix<'a>(&'a self) -> Option<Name<'a>> {
         let end = self.semicolon().unwrap_or(self.source.as_ref().len());
         self.plus.map(|idx| Name {
             source: &self.source.as_ref()[idx + 1..end],
