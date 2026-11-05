@@ -57,47 +57,49 @@ impl<'a> Iterator for MimeIter<'a> {
     type Item = Result<Mime, &'a str>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let start = self.pos;
-        let len = self.source.bytes().len();
+        loop {
+            let start = self.pos;
+            let len = self.source.bytes().len();
 
-        if start >= len {
-            return None;
-        }
-
-        // Try parsing the whole remaining slice, until the end
-        match parse(&self.source[start..len]) {
-            Ok(value) => {
-                self.pos = len;
-                Some(Ok(value))
+            if start >= len {
+                return None;
             }
-            Err(ParseError::InvalidToken { pos, .. }) => {
-                // The first token is immediately found to be wrong by `parse`. Skip it
-                if pos == 0 {
-                    self.pos += 1;
-                    return self.next();
+
+            // Try parsing the whole remaining slice, until the end
+            return match parse(&self.source[start..len]) {
+                Ok(value) => {
+                    self.pos = len;
+                    Some(Ok(value))
                 }
-                let slice = &self.source[start..start + pos];
-                // Try parsing the longest slice (until the first invalid token)
-                return match parse(slice) {
-                    Ok(mime) => {
-                        self.pos = start + pos + 1;
-                        Some(Ok(mime))
+                Err(ParseError::InvalidToken { pos, .. }) => {
+                    // The first token is immediately found to be wrong by `parse`. Skip it
+                    if pos == 0 {
+                        self.pos += 1;
+                        continue;
                     }
-                    Err(_) => {
-                        if start + pos < len {
-                            // Skip this invalid slice,
-                            // try parsing the remaining slice in the next iteration
-                            self.pos = start + pos;
-                            Some(Err(slice))
-                        } else {
-                            None
+                    let slice = &self.source[start..start + pos];
+                    // Try parsing the longest slice (until the first invalid token)
+                    match parse(slice) {
+                        Ok(mime) => {
+                            self.pos = start + pos + 1;
+                            Some(Ok(mime))
+                        }
+                        Err(_) => {
+                            if start + pos < len {
+                                // Skip this invalid slice,
+                                // try parsing the remaining slice in the next iteration
+                                self.pos = start + pos;
+                                Some(Err(slice))
+                            } else {
+                                None
+                            }
                         }
                     }
-                };
-            }
-            // Do not process any other error condition: the slice is malformed and
-            // no character is found to be invalid: a character is missing
-            Err(_) => None,
+                }
+                // Do not process any other error condition: the slice is malformed and
+                // no character is found to be invalid: a character is missing
+                Err(_) => None,
+            };
         }
     }
 }
@@ -464,5 +466,22 @@ fn test_parse_iterator_invalid() {
         iter.next().unwrap().unwrap(),
         parse("application/json").unwrap()
     );
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
+fn test_parse_iterator_many_empty_entries() {
+    let mut input = ",".repeat(10_000);
+    assert_eq!(MimeIter::new(&input).next(), None);
+
+    input.push_str("application/json");
+    input.push_str(&", ".repeat(10_000));
+    input.push_str("text/plain");
+    input.push_str(&",".repeat(10_000));
+
+    let mut iter = MimeIter::new(&input);
+    assert_eq!(iter.next().unwrap().unwrap(), ::APPLICATION_JSON);
+    assert_eq!(iter.next().unwrap().unwrap(), ::TEXT_PLAIN);
+    assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 }
