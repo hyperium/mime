@@ -141,6 +141,12 @@ pub fn parse(s: &str) -> Result<Mime, ParseError> {
             }
             Some((_, c)) if is_token(c) => (),
             None => {
+                if start == s.len() {
+                    return Err(ParseError::InvalidToken {
+                        pos: slash,
+                        byte: b'/',
+                    });
+                }
                 return Ok(Mime {
                     source: Source::Dynamic(s.to_ascii_lowercase()),
                     slash: slash,
@@ -482,5 +488,15 @@ fn test_parse_iterator_many_empty_entries() {
     assert_eq!(iter.next().unwrap().unwrap(), ::APPLICATION_JSON);
     assert_eq!(iter.next().unwrap().unwrap(), ::TEXT_PLAIN);
     assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
+fn test_parse_empty_subtype_rejected() {
+    assert!(parse("text/").is_err());
+    assert!(parse("text/;a=b").is_err());
+    let mut iter = MimeIter::new("text/, text/plain");
+    assert_eq!(iter.next().unwrap().unwrap_err(), "text/");
+    assert_eq!(iter.next().unwrap().unwrap(), ::TEXT_PLAIN);
     assert_eq!(iter.next(), None);
 }
